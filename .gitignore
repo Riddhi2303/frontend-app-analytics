@@ -1,21 +1,45 @@
-.DS_Store
-.eslintcache
-.idea
-node_modules
-npm-debug.log
-coverage
-module.config.js
+# Dependencies
+node_modules/
 
+# Build output
 dist/
+build/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Environment (keep committed templates: .env.development, .env.test)
+.env
+.env.local
+.env.*.local
+
+# Local overrides
+module.config.js
+webpack.dev-tutor.config.js
+
+# IDE / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Tooling caches
+.eslintcache
+.cache/
+*.tsbuildinfo
+
+# i18n / temp
 src/i18n/transifex_input.json
+temp/
 temp/babel-plugin-react-intl
 
-### pyenv ###
+# pyenv
 .python-version
-
-### Emacs ###
-*~
-/temp
-/.vscode
-
-webpack.dev-tutor.config.js
