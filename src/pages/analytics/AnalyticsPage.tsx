@@ -34,6 +34,7 @@ import {
   fetchTopFilterCounts,
 } from './data/thunks';
 
+import './analytics.scss';
 
 const PAGE_SIZE = DEFAULT_PAGE_SIZE;
 const SEARCH_DEBOUNCE_MS = 400;
