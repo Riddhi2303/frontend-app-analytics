@@ -177,7 +177,7 @@ type FetchStudentsParams = {
 
 const getBaseUrl = () => {
   const config = getConfig() as Record<string, unknown>;
-  const base = String(config.BASE_URL ?? "");
+  const base = String(config.LMS_BASE_URL ?? "");
   return `${base.replace(/\/+$/, "")}/student-analytics/api/students/`;
 };
 
