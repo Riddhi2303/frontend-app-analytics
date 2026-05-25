@@ -2,6 +2,7 @@ import { CourseMetric, StudentRecord } from '../data/analyticsData';
 
 type AnalyticsTableProps = {
   students: StudentRecord[];
+  courseCodes: string[];
   loading?: boolean;
 };
 
@@ -132,7 +133,9 @@ const COURSE_DOT_CLASS: Record<string, string> = {
 
 const dotClassForCourse = (code: string) => COURSE_DOT_CLASS[code.toUpperCase()] ?? 'ongoing-dot--tertiary';
 
-const AnalyticsTable = ({ students, loading = false }: AnalyticsTableProps) => (
+const totalColCount = (courseCodes: string[]) => 4 + courseCodes.length;
+
+const AnalyticsTable = ({ students, courseCodes, loading = false }: AnalyticsTableProps) => (
   <div className="analytics-table-wrap">
     <div className="analytics-grid-canvas">
       <table className="analytics-table">
@@ -141,35 +144,32 @@ const AnalyticsTable = ({ students, loading = false }: AnalyticsTableProps) => (
           <col className="col-ongoing" />
           <col className="col-last-call" />
           <col className="col-next-call" />
-          <col className="col-cad1" />
-          <col className="col-emc1" />
-          <col className="col-iot1" />
-          <col className="col-pcb1" />
-          <col className="col-ai1" />
+          {courseCodes.map((code) => (
+            <col key={code} className="col-course" />
+          ))}
         </colgroup>
         <thead>
           <tr className="thead-levels">
             <th className="th-level-gap col-sticky" aria-hidden="true" />
             <th colSpan={3} className="th-level-gap" aria-hidden="true" />
-            <th colSpan={2} className="th-level th-level--1">LVL 1</th>
-            <th colSpan={3} className="th-level th-level--2">LVL 2</th>
+            {courseCodes.length > 0 && (
+              <th colSpan={courseCodes.length} className="th-level th-level--1">Courses</th>
+            )}
           </tr>
           <tr className="thead-labels">
             <th className="col-sticky">Name</th>
             <th>Ongoing</th>
             <th>Last Call</th>
             <th>Next Call</th>
-            <th>CAD1</th>
-            <th>EMC1</th>
-            <th>IOT1</th>
-            <th>PCB1</th>
-            <th>AI1</th>
+            {courseCodes.map((code) => (
+              <th key={code}>{code}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {students.length === 0 ? (
             <tr>
-              <td colSpan={9} className="empty-row">
+              <td colSpan={totalColCount(courseCodes)} className="empty-row">
                 {loading ? 'Loading…' : 'No students match selected filters.'}
               </td>
             </tr>
@@ -211,11 +211,11 @@ const AnalyticsTable = ({ students, loading = false }: AnalyticsTableProps) => (
                     <div key={entry.code} className="call-entry">{entry.nextCall}</div>
                   ))}
                 </td>
-                <td className="metric-cell">{metricCard(student.cad1)}</td>
-                <td className="metric-cell">{metricCard(student.emc1)}</td>
-                <td className="metric-cell">{metricCard(student.iot1)}</td>
-                <td className="metric-cell">{metricCard(student.pcb1)}</td>
-                <td className="metric-cell">{metricCard(student.ai1)}</td>
+                {courseCodes.map((code) => (
+                  <td key={code} className="metric-cell">
+                    {metricCard(student.courseMetrics[code] ?? null)}
+                  </td>
+                ))}
               </tr>
             );
           })}

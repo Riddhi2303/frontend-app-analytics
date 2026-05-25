@@ -23,6 +23,7 @@ import {
   buildCohortFiltersFromResidencies,
   buildNotAssignedFilter,
   buildStudentFilters,
+  collectCourseCodes,
   mapStudentsFromApi,
 } from './data/analyticsData';
 import { DEFAULT_PAGE_SIZE, setApiFilters, setPage } from './data/slice';
@@ -277,6 +278,7 @@ const AnalyticsPage = () => {
   }, [analyticsUserKey, apiFilters, currentPage, dispatch, filterKey, filters]);
 
   const students = useMemo(() => mapStudentsFromApi(studentAnalyticsResults), [studentAnalyticsResults]);
+  const courseCodes = useMemo(() => collectCourseCodes(studentAnalyticsResults), [studentAnalyticsResults]);
 
   const selectSidebarFilter = (filterKey: string) => {
     setSelectedSidebarFilter(filterKey);
@@ -355,7 +357,7 @@ const AnalyticsPage = () => {
                 {error}
               </div>
             )}
-            <AnalyticsTable students={students} loading={loading} />
+            <AnalyticsTable students={students} courseCodes={courseCodes} loading={loading} />
           </div>
         </section>
       </section>

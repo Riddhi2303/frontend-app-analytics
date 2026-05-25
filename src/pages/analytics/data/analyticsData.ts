@@ -24,11 +24,7 @@ export type StudentRecord = {
   residency: 'Not Assigned' | 'Assigned';
   readiness: 'not-ready' | 'ready' | 'inactive';
   ongoingCourses: OngoingCourse[];
-  cad1: CourseMetric | null;
-  emc1: CourseMetric | null;
-  iot1: CourseMetric | null;
-  pcb1: CourseMetric | null;
-  ai1: CourseMetric | null;
+  courseMetrics: Record<string, CourseMetric | null>;
 };
 
 export type FilterRecord = {
@@ -154,12 +150,30 @@ const buildCourseMetric = (course: ApiCourse | undefined): CourseMetric | null =
   };
 };
 
+/** Collect all unique course codes (upper-cased) across all students, preserving first-seen order. */
+export const collectCourseCodes = (results: ApiStudent[]): string[] => {
+  const seen = new Set<string>();
+  const codes: string[] = [];
+  for (const student of results) {
+    for (const course of student.courses) {
+      const code = course.course_code.toUpperCase();
+      if (!seen.has(code)) {
+        seen.add(code);
+        codes.push(code);
+      }
+    }
+  }
+  return codes;
+};
+
 export const mapStudentsFromApi = (results: ApiStudent[]): StudentRecord[] => results.map((student) => {
-  const cad1 = lookupCourse(student.courses, 'CAD1');
-  const emc1 = lookupCourse(student.courses, 'EMC1');
-  const iot1 = lookupCourse(student.courses, 'IoT1');
-  const pcb1 = lookupCourse(student.courses, 'PCB1');
-  const ai1 = lookupCourse(student.courses, 'AIM1');
+  const courseMetrics: Record<string, CourseMetric | null> = {};
+  for (const course of student.courses) {
+    const code = course.course_code.toUpperCase();
+    if (!courseMetrics[code]) {
+      courseMetrics[code] = buildCourseMetric(course);
+    }
+  }
 
   const fullName = `${student.first_name} ${student.last_name}`.trim();
   const category: StudentRecord['category'] = student.is_innovation_school
@@ -188,11 +202,7 @@ export const mapStudentsFromApi = (results: ApiStudent[]): StudentRecord[] => re
     residency: student.residency.name ? 'Assigned' : 'Not Assigned',
     readiness: student.is_residence_ready ? 'ready' : (student.inactive_for_two_weeks ? 'inactive' : 'not-ready'),
     ongoingCourses,
-    cad1: buildCourseMetric(cad1),
-    emc1: buildCourseMetric(emc1),
-    iot1: buildCourseMetric(iot1),
-    pcb1: buildCourseMetric(pcb1),
-    ai1: buildCourseMetric(ai1),
+    courseMetrics,
   };
 });
 
