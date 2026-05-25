@@ -1,6 +1,5 @@
 import { getConfig } from "@edx/frontend-platform";
 import { getAuthenticatedHttpClient } from "@edx/frontend-platform/auth";
-// import axios from 'axios';
 
 import type {
   ApiResidency,
@@ -178,19 +177,8 @@ type FetchStudentsParams = {
 
 const getBaseUrl = () => {
   const config = getConfig() as Record<string, unknown>;
-  const base = String(config.STUDENT_ANALYTICS_API_BASE_URL ?? "");
-  const path = String(config.STUDENT_ANALYTICS_API_PATH ?? "");
-  // const isDev = process.env.NODE_ENV === "development";
-  //
-  // if (!path || (!isDev && !base)) {
-  //   throw new Error(
-  //     "Missing STUDENT_ANALYTICS_API_BASE_URL or STUDENT_ANALYTICS_API_PATH in config.",
-  //   );
-  // }
-  // if (isDev) {
-  //   return path.startsWith("/") ? path : `/${path}`;
-  // }
-  return `${base.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+  const base = String(config.BASE_URL ?? "");
+  return `${base.replace(/\/+$/, "")}/student-analytics/api/students/`;
 };
 
 const buildFilterParams = (filters: ApiFilters = {}) => {
@@ -255,9 +243,6 @@ export async function fetchStudentsAnalyticsApi({
 
   const { data } = await getAuthenticatedHttpClient().get(url, { params });
   return data as ApiStudentAnalyticsResponse;
-
-  // const response = await axios.get(url, { params });
-  // return response.data as ApiStudentAnalyticsResponse;
 }
 
 /**
@@ -268,9 +253,6 @@ export async function fetchResidenciesApi(): Promise<ApiResidency[]> {
 
   const { data } = await getAuthenticatedHttpClient().get(url);
   return Array.isArray(data) ? data : (data.results ?? []);
-
-  // const { data } = await axios.get(url);
-  // return Array.isArray(data) ? data : (data.results ?? []);
 }
 
 const resolveSiblingApiUrl = (segment: string) =>
@@ -313,9 +295,6 @@ export async function fetchEnrollmentFilterCountsApi(): Promise<
 
   const { data } = await getAuthenticatedHttpClient().get(url);
   return normalizeCountsPayload(data);
-
-  // const { data } = await axios.get(url);
-  // return normalizeCountsPayload(data);
 }
 
 /**
@@ -329,9 +308,6 @@ export async function fetchResidencyCountsApi(): Promise<
 
   const { data } = await getAuthenticatedHttpClient().get(url);
   return normalizeCountsPayload(data);
-
-  // const { data } = await axios.get(url);
-  // return normalizeCountsPayload(data);
 }
 
 /**
@@ -346,7 +322,4 @@ export async function fetchScopedFilterCountsApi(
 
   const { data } = await getAuthenticatedHttpClient().get(url, { params });
   return resolveFilterCountForChip(normalizeCountsPayload(data), filters);
-
-  // const { data } = await axios.get(url, { params });
-  // return resolveFilterCountForChip(normalizeCountsPayload(data), filters);
 }

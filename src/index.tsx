@@ -2,7 +2,7 @@ import 'core-js/stable';
 import 'regenerator-runtime/runtime';
 
 import {
-  APP_INIT_ERROR, APP_READY, subscribe, initialize, mergeConfig,
+  APP_INIT_ERROR, APP_READY, subscribe, initialize,
 } from '@edx/frontend-platform';
 import { AppProvider, ErrorPage } from '@edx/frontend-platform/react';
 import ReactDOM from 'react-dom';
@@ -39,12 +39,7 @@ subscribe(APP_INIT_ERROR, (message: string) => {
 initialize({
   messages,
   handlers: {
-    config: () => {
-      mergeConfig({
-        STUDENT_ANALYTICS_API_BASE_URL: process.env.STUDENT_ANALYTICS_API_BASE_URL || '',
-        STUDENT_ANALYTICS_API_PATH: process.env.STUDENT_ANALYTICS_API_PATH || '',
-      });
-    },
+    config: () => {},
     // Skip backend auth calls for frontend-only local development.
     auth: async () => {},
   },
