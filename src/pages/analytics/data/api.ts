@@ -1,4 +1,3 @@
-import { getConfig } from "@edx/frontend-platform";
 // import { getAuthenticatedHttpClient } from "@edx/frontend-platform/auth";
 import axios from 'axios';
 
@@ -176,7 +175,7 @@ type FetchStudentsParams = {
   filters?: ApiFilters;
 };
 
-const getBaseUrl = () => `/student-analytics/api/students/`;
+const getBaseUrl = () => `https://mash.makersasylum.com/student-analytics/api/students/`;
 
 const buildFilterParams = (filters: ApiFilters = {}) => {
   const params: Record<string, string | number | boolean> = {};
