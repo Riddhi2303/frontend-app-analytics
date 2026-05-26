@@ -1,0 +1,12 @@
+{
+  "rewrites": [
+    {
+      "source": "/student-analytics/:path*",
+      "destination": "https://mash.makersasylum.com/student-analytics/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
