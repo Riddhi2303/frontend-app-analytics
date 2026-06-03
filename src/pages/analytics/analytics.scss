@@ -660,13 +660,13 @@ body,
 
 /* Table layout from Figma MASH-UI node 24:6972 (Rectangle 703 + column guides) */
 .analytics-table {
-  width: 1656px;
+  width: 1707px;
   border-collapse: separate;
   border-spacing: 0;
   table-layout: fixed;
   font-family: var(--mash-table-font);
 
-  --mash-name-col-width: 189px;
+  --mash-name-col-width: 240px;
   /* LVL row: 26px cell + 3px orange top border */
   --mash-thead-level-height: 29px;
 
@@ -1116,6 +1116,6 @@ body,
 }
 
 .analytics-grid-canvas {
-  width: 1656px;
+  width: 1707px;
   background: #fff;
 }

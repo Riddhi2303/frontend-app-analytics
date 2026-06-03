@@ -78,7 +78,7 @@ const metricCard = (metric: CourseMetric | null | undefined) => {
               <span className="metric-dot-sep">·</span>
               <span className="metric-num metric-num--blue">{m.gateScheduled}</span>
               <span className="metric-dot-sep">·</span>
-              <span className="metric-num metric-num--muted">0</span>
+              <span className="metric-num metric-num--muted">{m.gateTotal}</span>
             </span>
           ) : (
             <strong className="metric-single">{m.gateCompleted}</strong>
@@ -92,9 +92,9 @@ const metricCard = (metric: CourseMetric | null | undefined) => {
             <span className="metric-triple">
               <span className="metric-num metric-num--green">{m.oraGraded}</span>
               <span className="metric-dot-sep">·</span>
-              <span className="metric-num metric-num--blue">{m.oraPending}</span>
+              <span className="metric-num metric-num--blue">{m.oraSubmitted}</span>
               <span className="metric-dot-sep">·</span>
-              <span className="metric-num metric-num--muted">0</span>
+              <span className="metric-num metric-num--muted">{m.oraTotal}</span>
             </span>
           ) : (
             <strong className="metric-single">{m.oraGraded}</strong>
@@ -103,6 +103,7 @@ const metricCard = (metric: CourseMetric | null | undefined) => {
 
         {/* ORA points */}
         <span className="metric-pill metric-pill--gem">
+          {console.log('Rendering points for metric:', m)}
           <GemIcon />
           <span className="metric-fraction">
             <strong>{m.oraPointsObtained}</strong>

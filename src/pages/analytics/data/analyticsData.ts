@@ -9,7 +9,8 @@ export type CourseMetric = {
   gateScheduled: number;
   gateTotal: number;
   oraGraded: number;
-  oraPending: number;
+  oraSubmitted: number;
+  oraTotal: number;
   oraPointsObtained: number;
   oraPointsTotal: number;
   mentor: string;
@@ -137,33 +138,32 @@ const lookupCourse = (courses: ApiCourse[], code: string) => (
 const buildCourseMetric = (course: ApiCourse | undefined): CourseMetric | null => {
   if (!course) return null;
   const ora = course.ora;
-  const oraPending = ora ? Math.max(0, ora.submitted - ora.graded) : 0;
   return {
     gateCompleted: course.gate.completed,
     gateScheduled: course.gate.scheduled ?? 0,
     gateTotal: course.gate.total,
     oraGraded: ora?.graded ?? 0,
-    oraPending,
+    oraSubmitted: ora?.submitted ?? 0,
+    oraTotal: ora?.total ?? 0,
     oraPointsObtained: ora?.points_obtained ?? 0,
     oraPointsTotal: ora?.points_total ?? 0,
     mentor: course.mentor || '-',
   };
 };
 
-/** Collect all unique course codes (upper-cased) across all students, preserving first-seen order. */
+const COURSE_ORDER = ['CAD1', 'EMC1', 'ER1', 'IOT1', 'PCB1', 'VR1', 'AIM1'];
+
+/** Collect all unique course codes (upper-cased) across all students, in the prescribed order. */
 export const collectCourseCodes = (results: ApiStudent[]): string[] => {
   const seen = new Set<string>();
-  const codes: string[] = [];
   for (const student of results) {
     for (const course of student.courses) {
-      const code = course.course_code.toUpperCase();
-      if (!seen.has(code)) {
-        seen.add(code);
-        codes.push(code);
-      }
+      seen.add(course.course_code.toUpperCase());
     }
   }
-  return codes;
+  const ordered = COURSE_ORDER.filter((code) => seen.has(code));
+  const rest = [...seen].filter((code) => !COURSE_ORDER.includes(code));
+  return [...ordered, ...rest];
 };
 
 export const mapStudentsFromApi = (results: ApiStudent[]): StudentRecord[] => results.map((student) => {
