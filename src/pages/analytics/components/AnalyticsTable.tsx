@@ -38,9 +38,9 @@ type MetricTone = 'success' | 'accent' | 'neutral' | 'empty';
 const inferTone = (metric: CourseMetric | null | undefined): MetricTone => {
   if (!metric) { return 'empty'; }
   const hasMentor = Boolean(metric.mentor && metric.mentor !== '-');
-  const hasActivity = metric.gateCompleted > 0 || metric.gateScheduled > 0 || metric.oraGraded > 0;
+  const hasActivity = metric.gateCompleted > 0 || metric.gateScheduled > 0 || metric.oraGraded > 0 || metric.oraSubmitted > 0;
   if (!hasActivity && !hasMentor && metric.gateTotal === 0) { return 'empty'; }
-  if (metric.gateCompleted === 0 && metric.gateScheduled === 0 && metric.oraGraded === 0) { return 'neutral'; }
+  if (metric.gateCompleted === 0 && metric.gateScheduled === 0 && metric.oraGraded === 0 && metric.oraSubmitted === 0) { return 'neutral'; }
   if (metric.gateTotal > 0 && metric.gateCompleted >= metric.gateTotal) { return 'success'; }
   return 'accent';
 };
@@ -90,20 +90,19 @@ const metricCard = (metric: CourseMetric | null | undefined) => {
           <ChecklistIcon />
           {showTriple ? (
             <span className="metric-triple">
-              <span className="metric-num metric-num--green">{m.oraGraded}</span>
+              <span className="metric-num metric-num--green">{m.oraSubmitted}</span>
               <span className="metric-dot-sep">·</span>
-              <span className="metric-num metric-num--blue">{m.oraSubmitted}</span>
+              <span className="metric-num metric-num--blue">{m.oraGraded}</span>
               <span className="metric-dot-sep">·</span>
               <span className="metric-num metric-num--muted">{m.oraTotal}</span>
             </span>
           ) : (
-            <strong className="metric-single">{m.oraGraded}</strong>
+            <strong className="metric-single">{m.oraSubmitted}</strong>
           )}
         </span>
 
         {/* ORA points */}
         <span className="metric-pill metric-pill--gem">
-          {console.log('Rendering points for metric:', m)}
           <GemIcon />
           <span className="metric-fraction">
             <strong>{m.oraPointsObtained}</strong>
