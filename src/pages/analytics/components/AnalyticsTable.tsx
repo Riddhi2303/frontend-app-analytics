@@ -85,30 +85,34 @@ const metricCard = (metric: CourseMetric | null | undefined) => {
           )}
         </span>
 
-        {/* ORA tasks */}
-        <span className="metric-pill">
-          <ChecklistIcon />
-          {showTriple ? (
-            <span className="metric-triple">
-              <span className="metric-num metric-num--green">{m.oraSubmitted}</span>
-              <span className="metric-dot-sep">·</span>
-              <span className="metric-num metric-num--blue">{m.oraGraded}</span>
-              <span className="metric-dot-sep">·</span>
-              <span className="metric-num metric-num--muted">{m.oraTotal}</span>
-            </span>
-          ) : (
-            <strong className="metric-single">{m.oraSubmitted}</strong>
-          )}
-        </span>
-
-        {/* ORA points */}
-        <span className="metric-pill metric-pill--gem">
-          <GemIcon />
-          <span className="metric-fraction">
-            <strong>{m.oraPointsObtained}</strong>
-            <span className="metric-fraction-denom">/{m.oraPointsTotal || '-'}</span>
+        {/* ORA tasks — hidden when course has no ORA assignments */}
+        {m.oraTotal > 0 && (
+          <span className="metric-pill">
+            <ChecklistIcon />
+            {showTriple ? (
+              <span className="metric-triple">
+                <span className="metric-num metric-num--green">{m.oraSubmitted}</span>
+                <span className="metric-dot-sep">·</span>
+                <span className="metric-num metric-num--blue">{m.oraGraded}</span>
+                <span className="metric-dot-sep">·</span>
+                <span className="metric-num metric-num--muted">{m.oraTotal}</span>
+              </span>
+            ) : (
+              <strong className="metric-single">{m.oraSubmitted}</strong>
+            )}
           </span>
-        </span>
+        )}
+
+        {/* ORA points — hidden when course has no ORA assignments */}
+        {m.oraTotal > 0 && (
+          <span className="metric-pill metric-pill--gem">
+            <GemIcon />
+            <span className="metric-fraction">
+              <strong>{m.oraPointsObtained}</strong>
+              <span className="metric-fraction-denom">/{m.oraPointsTotal || '-'}</span>
+            </span>
+          </span>
+        )}
       </div>
 
       {m.mentor && m.mentor !== '-' ? (
@@ -173,11 +177,10 @@ const AnalyticsTable = ({ students, courseCodes, loading = false }: AnalyticsTab
                 {loading ? 'Loading…' : 'No students match selected filters.'}
               </td>
             </tr>
-          ) : students.map((student, index) => {
-            const isHighlighted = index === 4;
+          ) : students.map((student) => {
             const hasResidency = student.residency === 'Assigned';
             return (
-              <tr key={student.id} className={isHighlighted ? 'highlighted' : ''}>
+              <tr key={student.id} className={student.readiness === 'ready' ? 'highlighted' : ''}>
                 <td className="student-cell">
                   <div className="student-cell-inner">
                     <span className="student-avatar" aria-hidden="true">
