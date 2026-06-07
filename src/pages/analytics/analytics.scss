@@ -1115,15 +1115,13 @@ body,
   padding: 24px !important;
 }
 
-@keyframes table-spin {
+@keyframes spinner-spin {
   to { transform: rotate(360deg); }
 }
 
-.table-spinner {
-  width: 20px;
-  height: 20px;
+.spinner-icon {
   color: var(--color-gray);
-  animation: table-spin 0.8s linear infinite;
+  animation: spinner-spin 0.8s linear infinite;
   vertical-align: middle;
 }
 

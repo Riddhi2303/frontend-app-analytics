@@ -1,6 +1,5 @@
-import { Spinner } from '@openedx/paragon';
-
 import RefreshCwIcon from './RefreshCwIcon';
+import SpinnerIcon from './SpinnerIcon';
 
 type AnalyticsFiltersRowProps = {
   searchValue: string;
@@ -115,7 +114,7 @@ const AnalyticsFiltersRow = ({
                 <span className="chip-label">{chip.label}</span>
                 <span className="chip-count" aria-live="polite">
                   {countsLoading[chipLoadingKey[chip.id]] ? (
-                    <Spinner animation="border" size="sm" screenReaderText="Loading count" />
+                    <SpinnerIcon />
                   ) : (
                     `(${chip.count})`
                   )}

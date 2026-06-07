@@ -1,10 +1,5 @@
 import { CourseMetric, StudentRecord } from '../data/analyticsData';
-
-const TableSpinner = () => (
-  <svg className="table-spinner" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-label="Loading" role="img">
-    <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="28 56" />
-  </svg>
-);
+import SpinnerIcon from './SpinnerIcon';
 
 type AnalyticsTableProps = {
   students: StudentRecord[];
@@ -185,7 +180,7 @@ const AnalyticsTable = ({ students, courseCodes, loading = false }: AnalyticsTab
           {students.length === 0 ? (
             <tr>
               <td colSpan={totalColCount(courseCodes)} className="empty-row">
-                {loading ? <TableSpinner /> : 'No students match selected filters.'}
+                {loading ? <SpinnerIcon size={20} /> : 'No students match selected filters.'}
               </td>
             </tr>
           ) : students.map((student) => {

@@ -1,6 +1,5 @@
-import { Spinner } from '@openedx/paragon';
-
 import { SIDEBAR_FILTER_KEY } from '../data/api';
+import SpinnerIcon from './SpinnerIcon';
 import { CohortRecord, FilterRecord, NOT_ASSIGNED_FILTER_LABEL } from '../data/analyticsData';
 
 const SIDEBAR_RADIO_NAME = 'analytics-sidebar-filter';
@@ -21,7 +20,7 @@ const FilterCount = ({ count, loading, danger = false }: {
 }) => (
   <span className={`filter-count ${danger ? 'danger' : ''}`}>
     {loading ? (
-      <Spinner animation="border" size="sm" screenReaderText="Loading count" />
+      <SpinnerIcon />
     ) : (
       `(${count})`
     )}
@@ -103,7 +102,7 @@ const AnalyticsSidebar = ({
               </div>
               <span className="cohort-badge">
                 {countsLoading ? (
-                  <Spinner animation="border" size="sm" screenReaderText="Loading count" />
+                  <SpinnerIcon />
                 ) : (
                   <>
                     {item.total} <em>({item.ready})</em>
