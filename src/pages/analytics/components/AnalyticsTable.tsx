@@ -1,3 +1,4 @@
+import { Spinner } from '@openedx/paragon';
 import { CourseMetric, StudentRecord } from '../data/analyticsData';
 
 type AnalyticsTableProps = {
@@ -179,7 +180,7 @@ const AnalyticsTable = ({ students, courseCodes, loading = false }: AnalyticsTab
           {students.length === 0 ? (
             <tr>
               <td colSpan={totalColCount(courseCodes)} className="empty-row">
-                {loading ? 'Loading…' : 'No students match selected filters.'}
+                {loading ? <Spinner animation="border" screenReaderText="Loading students" /> : 'No students match selected filters.'}
               </td>
             </tr>
           ) : students.map((student) => {
