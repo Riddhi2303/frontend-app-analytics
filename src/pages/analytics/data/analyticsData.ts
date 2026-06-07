@@ -13,6 +13,7 @@ export type CourseMetric = {
   oraTotal: number;
   oraPointsObtained: number;
   oraPointsTotal: number;
+  passingGradePercentage: number;
   mentor: string;
 };
 
@@ -147,6 +148,7 @@ const buildCourseMetric = (course: ApiCourse | undefined): CourseMetric | null =
     oraTotal: ora?.total ?? 0,
     oraPointsObtained: ora?.points_obtained ?? 0,
     oraPointsTotal: ora?.points_total ?? 0,
+    passingGradePercentage: ora?.passing_grade_percentage ?? 0,
     mentor: course.mentor || '-',
   };
 };

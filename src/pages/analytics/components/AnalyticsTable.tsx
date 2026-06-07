@@ -38,10 +38,15 @@ type MetricTone = 'success' | 'accent' | 'neutral' | 'empty';
 const inferTone = (metric: CourseMetric | null | undefined): MetricTone => {
   if (!metric) { return 'empty'; }
   const hasMentor = Boolean(metric.mentor && metric.mentor !== '-');
+  const isOraless = metric.oraTotal === 0;
   const hasActivity = metric.gateCompleted > 0 || metric.gateScheduled > 0 || metric.oraGraded > 0 || metric.oraSubmitted > 0;
   if (!hasActivity && !hasMentor && metric.gateTotal === 0) { return 'empty'; }
   if (metric.gateCompleted === 0 && metric.gateScheduled === 0 && metric.oraGraded === 0 && metric.oraSubmitted === 0) { return 'neutral'; }
-  if (metric.gateTotal > 0 && metric.gateCompleted >= metric.gateTotal) { return 'success'; }
+  const gateComplete = metric.gateTotal > 0 && metric.gateCompleted >= metric.gateTotal;
+  if (isOraless && gateComplete) { return 'success'; }
+  const oraPassingGrade = metric.oraPointsTotal > 0 && metric.passingGradePercentage > 0
+    && (metric.oraPointsObtained / metric.oraPointsTotal) >= metric.passingGradePercentage;
+  if (!isOraless && oraPassingGrade) { return 'success'; }
   return 'accent';
 };
 
