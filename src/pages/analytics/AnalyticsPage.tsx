@@ -337,7 +337,7 @@ const AnalyticsPage = () => {
 
   return (
     <main className="analytics-page">
-      <AnalyticsTopNav />
+      {/* <AnalyticsTopNav /> */}
       <section className="analytics-content">
         <AnalyticsSidebar
           studentFilters={studentFilters}

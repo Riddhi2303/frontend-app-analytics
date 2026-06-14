@@ -11,6 +11,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import messages from './i18n';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
 import { store } from './store';
+import Header from '@edx/frontend-component-header';
 
 import './index.scss';
 
@@ -22,6 +23,7 @@ if (!rootEl) {
 subscribe(APP_READY, () => {
   ReactDOM.render(
     <AppProvider store={store}>
+      <Header />
       <Routes>
         <Route path="/analytics" element={<AnalyticsPage />} />
         <Route path="/" element={<Navigate to="/analytics" replace />} />
