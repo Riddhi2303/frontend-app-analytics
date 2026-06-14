@@ -19,6 +19,8 @@ import {
 import AnalyticsFiltersRow from './components/AnalyticsFiltersRow';
 import AnalyticsSidebar from './components/AnalyticsSidebar';
 import AnalyticsTable from './components/AnalyticsTable';
+import AnalyticsTopNav from './components/AnalyticsTopNav';
+import StudentDetailDrawer from './components/StudentDetailDrawer';
 import {
   buildCohortFiltersFromResidencies,
   buildNotAssignedFilter,
@@ -95,6 +97,7 @@ const AnalyticsPage = () => {
   const [searchValue, setSearchValue] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedReadiness, setSelectedReadiness] = useState<ReadinessFilter>('all');
+  const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -279,6 +282,20 @@ const AnalyticsPage = () => {
 
   const students = useMemo(() => mapStudentsFromApi(studentAnalyticsResults), [studentAnalyticsResults]);
   const courseCodes = useMemo(() => collectCourseCodes(studentAnalyticsResults), [studentAnalyticsResults]);
+  const selectedStudent = useMemo(
+    () => studentAnalyticsResults.find((student) => student.id === selectedStudentId) ?? null,
+    [selectedStudentId, studentAnalyticsResults],
+  );
+
+  useEffect(() => {
+    if (selectedStudentId == null) {
+      return;
+    }
+    const stillVisible = studentAnalyticsResults.some((student) => student.id === selectedStudentId);
+    if (!stillVisible) {
+      setSelectedStudentId(null);
+    }
+  }, [selectedStudentId, studentAnalyticsResults]);
 
   const selectSidebarFilter = (filterKey: string) => {
     setSelectedSidebarFilter(filterKey);
@@ -320,6 +337,7 @@ const AnalyticsPage = () => {
 
   return (
     <main className="analytics-page">
+      <AnalyticsTopNav />
       <section className="analytics-content">
         <AnalyticsSidebar
           studentFilters={studentFilters}
@@ -357,7 +375,21 @@ const AnalyticsPage = () => {
                 {error}
               </div>
             )}
-            <AnalyticsTable students={students} courseCodes={courseCodes} loading={loading} />
+            <AnalyticsTable
+              students={students}
+              courseCodes={courseCodes}
+              loading={loading}
+              selectedStudentId={selectedStudentId}
+              onStudentSelect={(studentId) => {
+                setSelectedStudentId((current) => (current === studentId ? null : studentId));
+              }}
+            />
+            {selectedStudent && (
+              <StudentDetailDrawer
+                student={selectedStudent}
+                onClose={() => setSelectedStudentId(null)}
+              />
+            )}
           </div>
         </section>
       </section>

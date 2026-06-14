@@ -5,6 +5,8 @@ type AnalyticsTableProps = {
   students: StudentRecord[];
   courseCodes: string[];
   loading?: boolean;
+  selectedStudentId?: number | null;
+  onStudentSelect?: (studentId: number) => void;
 };
 
 const PhoneIcon = () => (
@@ -145,7 +147,13 @@ const dotClassForCourse = (code: string) => COURSE_DOT_CLASS[code.toUpperCase()]
 
 const totalColCount = (courseCodes: string[]) => 4 + courseCodes.length;
 
-const AnalyticsTable = ({ students, courseCodes, loading = false }: AnalyticsTableProps) => (
+const AnalyticsTable = ({
+  students,
+  courseCodes,
+  loading = false,
+  selectedStudentId = null,
+  onStudentSelect,
+}: AnalyticsTableProps) => (
   <div className="analytics-table-wrap">
     <div className="analytics-grid-canvas">
       <table className="analytics-table">
@@ -185,8 +193,31 @@ const AnalyticsTable = ({ students, courseCodes, loading = false }: AnalyticsTab
             </tr>
           ) : students.map((student) => {
             const hasResidency = student.residency === 'Assigned';
+            const isSelected = selectedStudentId === student.id;
+            const rowClassNames = [
+              student.readiness === 'ready' ? 'highlighted' : '',
+              isSelected ? 'selected' : '',
+              onStudentSelect ? 'clickable' : '',
+            ].filter(Boolean).join(' ');
+
+            const handleRowActivate = () => {
+              onStudentSelect?.(student.id);
+            };
+
             return (
-              <tr key={student.id} className={student.readiness === 'ready' ? 'highlighted' : ''}>
+              <tr
+                key={student.id}
+                className={rowClassNames}
+                onClick={onStudentSelect ? handleRowActivate : undefined}
+                onKeyDown={onStudentSelect ? (event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    handleRowActivate();
+                  }
+                } : undefined}
+                tabIndex={onStudentSelect ? 0 : undefined}
+                aria-selected={onStudentSelect ? isSelected : undefined}
+              >
                 <td className="student-cell">
                   <div className="student-cell-inner">
                     <span className="student-avatar" aria-hidden="true">

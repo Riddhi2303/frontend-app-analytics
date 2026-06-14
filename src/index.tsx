@@ -39,8 +39,8 @@ subscribe(APP_INIT_ERROR, (message: string) => {
 initialize({
   messages,
   handlers: {
-    config: () => {},
+    config: () => { },
     // Skip backend auth calls for frontend-only local development.
-    auth: async () => {},
+    auth: async () => { },
   },
 });

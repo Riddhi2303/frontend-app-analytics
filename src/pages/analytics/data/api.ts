@@ -2,6 +2,8 @@
 import axios from 'axios';
 
 import type {
+  ApiGateCallsResponse,
+  ApiOraDetailsResponse,
   ApiResidency,
   ApiStudentAnalyticsResponse,
 } from "./analyticsData";
@@ -333,4 +335,61 @@ export async function fetchScopedFilterCountsApi(
 
   const { data } = await axios.get(url, { params });
   return resolveFilterCountForChip(normalizeCountsPayload(data), filters);
+}
+
+type FetchGateCallsParams = {
+  studentId: number;
+  courseId: string;
+  mentorId: number;
+};
+
+/**
+ * Gate call history for the student detail drawer.
+ * GET …/student-analytics/api/gate-calls/?student_id=&course_id=&mentor_id=
+ */
+export async function fetchGateCallsApi({
+  studentId,
+  courseId,
+  mentorId,
+}: FetchGateCallsParams): Promise<ApiGateCallsResponse["results"]> {
+  const url = resolveSiblingApiUrl("gate-calls/");
+  const params = {
+    student_id: studentId,
+    course_id: courseId,
+    mentor_id: mentorId,
+  };
+
+  const { data } = await axios.get(url, { params });
+  const payload = data as ApiGateCallsResponse | ApiGateCallsResponse["results"];
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  return payload.results ?? [];
+}
+
+type FetchOraDetailsParams = {
+  studentId: number;
+  courseId: string;
+};
+
+/**
+ * Practice question details for the student detail drawer.
+ * GET …/student-analytics/api/ora-details/?student_id=&course_id=
+ */
+export async function fetchOraDetailsApi({
+  studentId,
+  courseId,
+}: FetchOraDetailsParams): Promise<ApiOraDetailsResponse["results"]> {
+  const url = resolveSiblingApiUrl("ora-details/");
+  const params = {
+    student_id: studentId,
+    course_id: courseId,
+  };
+
+  const { data } = await axios.get(url, { params });
+  const payload = data as ApiOraDetailsResponse | ApiOraDetailsResponse["results"];
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  return payload.results ?? [];
 }

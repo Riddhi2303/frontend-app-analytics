@@ -62,15 +62,79 @@ export type ApiOra = {
   passing_grade_points: number | null;
 };
 
+export type ApiPracticeAssignment = {
+  id?: number;
+  title: string;
+  submitted?: boolean;
+  reviewed?: boolean;
+  score?: number | null;
+  max_score?: number | null;
+};
+
+export type GateCallStatus =
+  | 'cancelled'
+  | 'mentor_absent'
+  | 'student_absent'
+  | 'rescheduled'
+  | 'reschedule_needed'
+  | 'good_to_proceed'
+  | 'scheduled'
+  | 'completed';
+
+export type ApiGateCall = {
+  id?: number;
+  title: string;
+  start_time: string | null;
+  end_time?: string | null;
+  status: GateCallStatus | string;
+};
+
+export type ApiGateCallRecord = {
+  id: number;
+  event_name: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  result: string | null;
+  failure_reason: string | null;
+  description: string | null;
+  agenda: string;
+  mentor_attendance: boolean;
+  organiser_id: number;
+  organiser_name: string;
+  created: string;
+  modified: string;
+};
+
+export type ApiGateCallsResponse = {
+  results: ApiGateCallRecord[];
+};
+
+export type ApiOraDetailRecord = {
+  name: string;
+  submitted: boolean;
+  reviewed: boolean;
+  score_earned: number;
+  score_possible: number;
+};
+
+export type ApiOraDetailsResponse = {
+  results: ApiOraDetailRecord[];
+};
+
 export type ApiCourse = {
   course_id?: string;
   course_code: string;
   course_name?: string;
   mentor: string;
+  mentor_id?: number | null;
+  passed?: boolean;
   last_gate_call: string | null;
   upcoming_gate_call: string | null;
   gate: { completed: number; scheduled: number; total: number };
   ora: ApiOra | null;
+  assignments?: ApiPracticeAssignment[];
+  gate_calls?: ApiGateCall[];
 };
 
 export type ApiStudent = {
@@ -154,6 +218,212 @@ const buildCourseMetric = (course: ApiCourse | undefined): CourseMetric | null =
 };
 
 const COURSE_ORDER = ['CAD1', 'EMC1', 'ER1', 'IOT1', 'PCB1', 'VR1', 'AIM1'];
+
+const courseActivityScore = (course: ApiCourse): number => {
+  const gate = course.gate.completed + course.gate.scheduled;
+  const ora = course.ora?.submitted ?? 0;
+  const points = course.ora?.points_obtained ?? 0;
+  const mentorBonus = course.mentor_id ? 1 : 0;
+  return gate * 10 + ora * 5 + points + mentorBonus;
+};
+
+/** One course per code — prefer the enrollment with the most activity. */
+export const pickPrimaryCoursesForDrawer = (courses: ApiCourse[]): ApiCourse[] => {
+  const byCode = new Map<string, ApiCourse[]>();
+  for (const course of courses) {
+    const code = course.course_code.toUpperCase();
+    const group = byCode.get(code) ?? [];
+    group.push(course);
+    byCode.set(code, group);
+  }
+
+  const primary = [...byCode.entries()].map(([, group]) => (
+    [...group].sort((a, b) => courseActivityScore(b) - courseActivityScore(a))[0]
+  ));
+
+  return primary.sort((a, b) => {
+    const indexA = COURSE_ORDER.indexOf(a.course_code.toUpperCase());
+    const indexB = COURSE_ORDER.indexOf(b.course_code.toUpperCase());
+    const orderA = indexA === -1 ? COURSE_ORDER.length : indexA;
+    const orderB = indexB === -1 ? COURSE_ORDER.length : indexB;
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    return a.course_code.localeCompare(b.course_code);
+  });
+};
+
+export const formatResidencyRange = (
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+) => {
+  if (!startDate || !endDate) {
+    return null;
+  }
+  const start = new Date(startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+  const end = new Date(endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+  return `${start} - ${end}`;
+};
+
+export const formatDrawerDateTime = (value: string | null | undefined) => {
+  if (!value) {
+    return null;
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  const day = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+  const time = date.toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${day}, ${time}`;
+};
+
+export const formatDrawerTimeRange = (
+  start: string | null | undefined,
+  end?: string | null | undefined,
+) => {
+  const startLabel = formatDrawerDateTime(start);
+  if (!startLabel) {
+    return null;
+  }
+  if (!end) {
+    return startLabel;
+  }
+  const endDate = new Date(end);
+  if (Number.isNaN(endDate.getTime())) {
+    return startLabel;
+  }
+  const endTime = endDate.toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+  return `${startLabel} - ${endTime}`;
+};
+
+export const studentDisplayName = (student: ApiStudent) => {
+  const fullName = `${student.first_name} ${student.last_name}`.trim();
+  return fullName || student.username;
+};
+
+/** Fallback call rows from list API when gate-calls detail is unavailable. */
+export const buildFallbackGateCalls = (course: ApiCourse): ApiGateCall[] => {
+  const calls: ApiGateCall[] = [];
+  if (course.last_gate_call) {
+    calls.push({
+      title: `Call ${Math.max(course.gate.completed, 1)}: Last completed call`,
+      start_time: course.last_gate_call,
+      status: 'good_to_proceed',
+    });
+  }
+  if (course.upcoming_gate_call) {
+    calls.push({
+      title: `Call ${course.gate.completed + 1}: Upcoming call`,
+      start_time: course.upcoming_gate_call,
+      status: 'scheduled',
+    });
+  }
+  return calls;
+};
+
+export const resolveGateCallDisplayStatus = (record: ApiGateCallRecord): GateCallStatus | string => {
+  const status = record.status?.toLowerCase() ?? '';
+
+  if (status === 'cancelled') {
+    return 'cancelled';
+  }
+  if (status === 'rescheduled') {
+    return 'rescheduled';
+  }
+
+  if (record.result === 'passed') {
+    return 'good_to_proceed';
+  }
+
+  if (record.result === 'failed') {
+    const reason = record.failure_reason?.toLowerCase();
+    if (reason === 'absent') {
+      return record.mentor_attendance ? 'student_absent' : 'mentor_absent';
+    }
+    return 'reschedule_needed';
+  }
+
+  if (status === 'confirmed' || status === 'scheduled') {
+    return 'scheduled';
+  }
+
+  return status || 'scheduled';
+};
+
+export const mapGateCallRecordToDrawer = (record: ApiGateCallRecord): ApiGateCall => ({
+  id: record.id,
+  title: record.event_name,
+  start_time: record.start_time,
+  end_time: record.end_time,
+  status: resolveGateCallDisplayStatus(record),
+});
+
+export const mapOraDetailRecordToAssignment = (record: ApiOraDetailRecord): ApiPracticeAssignment => ({
+  title: record.name,
+  submitted: record.submitted,
+  reviewed: record.reviewed,
+  score: record.score_earned,
+  max_score: record.score_possible,
+});
+
+export const sumPracticeAssignmentScores = (assignments: ApiPracticeAssignment[]) => {
+  const earned = assignments.reduce((sum, assignment) => sum + (assignment.score ?? 0), 0);
+  const possible = assignments.reduce((sum, assignment) => sum + (assignment.max_score ?? 0), 0);
+  return { earned, possible };
+};
+
+export type CourseDrawerTabStatus = 'completed' | 'in-progress' | 'not-started';
+
+/** Drawer course tab color: green = completed, blue = in progress, black = not started. */
+export const getCourseDrawerTabStatus = (course: ApiCourse): CourseDrawerTabStatus => {
+  const ora = course.ora;
+  const gateTotal = course.gate.total;
+  const gateComplete = gateTotal > 0 && course.gate.completed >= gateTotal;
+  const isOraless = (ora?.total ?? 0) === 0;
+  const oraPassingGrade = (ora?.points_total ?? 0) > 0
+    && (ora?.passing_grade_percentage ?? 0) > 0
+    && ((ora?.points_obtained ?? 0) / (ora?.points_total ?? 1)) >= (ora?.passing_grade_percentage ?? 0);
+
+  if (course.passed || (isOraless && gateComplete) || (!isOraless && oraPassingGrade)) {
+    return 'completed';
+  }
+
+  const hasActivity = course.gate.completed > 0
+    || course.gate.scheduled > 0
+    || (ora?.submitted ?? 0) > 0
+    || (ora?.graded ?? 0) > 0
+    || Boolean(course.last_gate_call)
+    || Boolean(course.upcoming_gate_call);
+
+  if (hasActivity) {
+    return 'in-progress';
+  }
+
+  return 'not-started';
+};
+
+export const formatGateCallTimeRange = (
+  start: string | null | undefined,
+  end?: string | null | undefined,
+) => {
+  if (!start) {
+    return null;
+  }
+  if (!end) {
+    return start;
+  }
+  const endTimeOnly = end.includes(', ') ? end.split(', ').slice(1).join(', ') : end;
+  return `${start} - ${endTimeOnly}`;
+};
 
 /** Collect all unique course codes (upper-cased) across all students, in the prescribed order. */
 export const collectCourseCodes = (results: ApiStudent[]): string[] => {
