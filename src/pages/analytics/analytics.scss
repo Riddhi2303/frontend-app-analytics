@@ -226,7 +226,7 @@ body,
   display: inline-flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: max-content;
   padding: 0;
   justify-content: flex-start;
@@ -251,11 +251,25 @@ body,
   color: #000;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   cursor: pointer;
   white-space: nowrap;
   box-sizing: border-box;
   transition: border-color 0.12s ease;
+  flex-shrink: 0;
+}
+
+.analytics-filters-row .chip-leading-spinner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: -2px;
+
+  .spinner-icon {
+    color: #727272;
+    display: block;
+  }
 }
 
 .analytics-filters-row .chip:hover {
@@ -465,10 +479,23 @@ body,
 .filter-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-height: 17px;
-  padding-left: 1px;
+  padding-left: 0;
   cursor: pointer;
+}
+
+.filter-row-loading {
+  width: 14px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 14px;
+}
+
+.filter-row-loading .spinner-icon {
+  display: block;
 }
 
 .filter-radio {
@@ -574,11 +601,15 @@ body,
 .cohort-row {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 2px 0 2px 1px;
+  gap: 6px;
+  padding: 2px 0;
   cursor: pointer;
 
   .filter-radio {
+    margin-top: 2px;
+  }
+
+  .filter-row-loading {
     margin-top: 2px;
   }
 }
@@ -948,6 +979,17 @@ body,
   overflow: hidden;
   position: relative;
   text-align: center;
+
+  .metric-cell-button {
+    display: block;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: center;
+  }
 
   .metric-card {
     margin: 0 auto;

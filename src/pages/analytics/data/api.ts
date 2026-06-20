@@ -321,20 +321,28 @@ export async function fetchResidencyCountsApi(): Promise<
 }
 
 /**
+ * Scoped `/counts/filters` payload for sidebar + search (all readiness totals in one response).
+ * GET …/student-analytics/api/counts/filters?residency=1&search=…
+ */
+export async function fetchScopedCountsApi(
+  filters: ApiFilters = {},
+): Promise<ApiStudentAnalyticsResponse["counts"]> {
+  const url = resolveSiblingApiUrl("counts/filters/");
+  const params = buildFilterParams(filters);
+
+  const { data } = await axios.get(url, { params });
+  return normalizeCountsPayload(data);
+}
+
+/**
  * Top readiness chip total for the active left-sidebar scope + readiness param.
  * GET …/student-analytics/api/counts/filters?residency=1&is_residence_ready=false
  */
 export async function fetchScopedFilterCountsApi(
   filters: ApiFilters = {},
 ): Promise<number> {
-  const url = resolveSiblingApiUrl("counts/filters/");
-  const params = buildFilterParams(filters);
-
-  // const { data } = await getAuthenticatedHttpClient().get(url, { params });
-  // return resolveFilterCountForChip(normalizeCountsPayload(data), filters);
-
-  const { data } = await axios.get(url, { params });
-  return resolveFilterCountForChip(normalizeCountsPayload(data), filters);
+  const counts = await fetchScopedCountsApi(filters);
+  return resolveFilterCountForChip(counts, filters);
 }
 
 type FetchGateCallsParams = {

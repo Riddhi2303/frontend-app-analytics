@@ -4,15 +4,16 @@ import {
   fetchEnrollmentFilterCountsApi,
   fetchResidencyCountsApi,
   fetchResidenciesApi,
-  fetchScopedFilterCountsApi,
+  fetchScopedCountsApi,
   fetchStudentsAnalyticsApi,
 } from './api';
 import type { ApiFilters } from './api';
-import type { TopReadinessCountKey } from './analyticsData';
+import { serializeApiFilters } from './api';
 import {
   FETCH_FACET_COUNTS_FAILURE,
   FETCH_FACET_COUNTS_PARTIAL_SUCCESS,
   FETCH_FACET_COUNTS_REQUEST,
+  FETCH_FACET_COUNTS_SUCCESS,
   FETCH_FILTER_COUNTS_FAILURE,
   FETCH_FILTER_COUNTS_REQUEST,
   FETCH_FILTER_COUNTS_SUCCESS,
@@ -31,6 +32,7 @@ export {
   FETCH_FACET_COUNTS_FAILURE,
   FETCH_FACET_COUNTS_PARTIAL_SUCCESS,
   FETCH_FACET_COUNTS_REQUEST,
+  FETCH_FACET_COUNTS_SUCCESS,
   FETCH_FILTER_COUNTS_FAILURE,
   FETCH_FILTER_COUNTS_REQUEST,
   FETCH_FILTER_COUNTS_SUCCESS,
@@ -47,55 +49,56 @@ export {
 
 export const GLOBAL_TOP_COUNTS_KEY = '__global__';
 
-const READINESS_COUNT_REQUESTS: Array<{
-  key: TopReadinessCountKey;
-  buildFilters: (scopeFilters: ApiFilters) => ApiFilters;
-}> = [
-  {
-    key: 'notReady',
-    buildFilters: (scopeFilters) => ({ ...scopeFilters, is_residence_ready: false }),
-  },
-  {
-    key: 'ready',
-    buildFilters: (scopeFilters) => ({ ...scopeFilters, is_residence_ready: true }),
-  },
-  {
-    key: 'inactive',
-    buildFilters: (scopeFilters) => ({ ...scopeFilters, inactive_for_two_weeks: true }),
-  },
-];
+let latestStudentAnalyticsRequestId = 0;
+
+const inflightRequests = new Map<string, Promise<unknown>>();
+
+/** Collapse concurrent identical requests (e.g. React Strict Mode double-mount). */
+function dedupeInflight<T>(key: string, factory: () => Promise<T>): Promise<T> {
+  const existing = inflightRequests.get(key) as Promise<T> | undefined;
+  if (existing) {
+    return existing;
+  }
+
+  const promise = factory().finally(() => {
+    if (inflightRequests.get(key) === promise) {
+      inflightRequests.delete(key);
+    }
+  });
+  inflightRequests.set(key, promise);
+  return promise;
+}
 
 /**
- * Three parallel `/counts/filters` readiness calls; each top chip updates when its request finishes.
- * Scope includes left-sidebar filters and optional `search` (e.g. `?search=shivam&is_residence_ready=true`).
+ * One scoped `/counts/filters` call returns all readiness totals for the active sidebar + search scope.
  */
 export const fetchTopFilterCounts = (scopeFilters: ApiFilters = {}) => async (
   dispatch: AppDispatch,
 ) => {
-  dispatch({ type: FETCH_FACET_COUNTS_REQUEST });
+  const scopeKey = serializeApiFilters(scopeFilters);
 
-  const results = await Promise.allSettled(
-    READINESS_COUNT_REQUESTS.map(async ({ key, buildFilters }) => {
-      const totalCount = await fetchScopedFilterCountsApi(buildFilters(scopeFilters));
+  return dedupeInflight(`top-filter-counts:${scopeKey}`, async () => {
+    dispatch({ type: FETCH_FACET_COUNTS_REQUEST });
+
+    try {
+      const counts = await fetchScopedCountsApi(scopeFilters);
       dispatch({
-        type: FETCH_FACET_COUNTS_PARTIAL_SUCCESS,
+        type: FETCH_FACET_COUNTS_SUCCESS,
         payload: {
-          key,
-          totalCount,
+          all: counts.all,
+          notReady: counts.not_ready_for_residency,
+          ready: counts.ready_for_residency,
+          inactive: counts.inactive_for_two_weeks,
         },
       });
-    }),
-  );
-
-  const failed = results.find((result) => result.status === 'rejected');
-  if (failed?.status === 'rejected') {
-    const reason = failed.reason;
-    const message = reason instanceof Error ? reason.message : 'Failed to load filter counts.';
-    dispatch({
-      type: FETCH_FACET_COUNTS_FAILURE,
-      payload: message,
-    });
-  }
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to load filter counts.';
+      dispatch({
+        type: FETCH_FACET_COUNTS_FAILURE,
+        payload: message,
+      });
+    }
+  });
 };
 
 /** @alias fetchTopFilterCounts */
@@ -111,14 +114,23 @@ export const fetchStudentAnalytics = ({
   pageSize: number;
   filters?: ApiFilters;
 }) => async (dispatch: AppDispatch) => {
-  dispatch({ type: FETCH_STUDENT_ANALYTICS_REQUEST });
+  latestStudentAnalyticsRequestId += 1;
+  const requestId = latestStudentAnalyticsRequestId;
+
+  dispatch({ type: FETCH_STUDENT_ANALYTICS_REQUEST, payload: { requestId } });
   try {
     const data = await fetchStudentsAnalyticsApi({ page, pageSize, filters });
+    if (requestId !== latestStudentAnalyticsRequestId) {
+      return;
+    }
     dispatch({
       type: FETCH_STUDENT_ANALYTICS_SUCCESS,
       payload: data,
     });
   } catch (error: unknown) {
+    if (requestId !== latestStudentAnalyticsRequestId) {
+      return;
+    }
     const message = error instanceof Error ? error.message : 'Failed to load student analytics.';
     dispatch({
       type: FETCH_STUDENT_ANALYTICS_FAILURE,
@@ -128,54 +140,63 @@ export const fetchStudentAnalytics = ({
 };
 
 /** Left sidebar enrollment counts (`/counts/filters`). */
-export const fetchFilterCounts = () => async (dispatch: AppDispatch) => {
-  dispatch({ type: FETCH_FILTER_COUNTS_REQUEST });
-  try {
-    const counts = await fetchEnrollmentFilterCountsApi();
-    dispatch({
-      type: FETCH_FILTER_COUNTS_SUCCESS,
-      payload: counts,
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to load filter counts.';
-    dispatch({
-      type: FETCH_FILTER_COUNTS_FAILURE,
-      payload: message,
-    });
-  }
-};
+export const fetchFilterCounts = () => async (dispatch: AppDispatch) => dedupeInflight(
+  'filter-counts',
+  async () => {
+    dispatch({ type: FETCH_FILTER_COUNTS_REQUEST });
+    try {
+      const counts = await fetchEnrollmentFilterCountsApi();
+      dispatch({
+        type: FETCH_FILTER_COUNTS_SUCCESS,
+        payload: counts,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to load filter counts.';
+      dispatch({
+        type: FETCH_FILTER_COUNTS_FAILURE,
+        payload: message,
+      });
+    }
+  },
+);
 
 /** Left sidebar cohort counts (`/counts/residencies/`). */
-export const fetchResidencyCounts = () => async (dispatch: AppDispatch) => {
-  dispatch({ type: FETCH_RESIDENCY_COUNTS_REQUEST });
-  try {
-    const counts = await fetchResidencyCountsApi();
-    dispatch({
-      type: FETCH_RESIDENCY_COUNTS_SUCCESS,
-      payload: counts,
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to load residency counts.';
-    dispatch({
-      type: FETCH_RESIDENCY_COUNTS_FAILURE,
-      payload: message,
-    });
-  }
-};
+export const fetchResidencyCounts = () => async (dispatch: AppDispatch) => dedupeInflight(
+  'residency-counts',
+  async () => {
+    dispatch({ type: FETCH_RESIDENCY_COUNTS_REQUEST });
+    try {
+      const counts = await fetchResidencyCountsApi();
+      dispatch({
+        type: FETCH_RESIDENCY_COUNTS_SUCCESS,
+        payload: counts,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to load residency counts.';
+      dispatch({
+        type: FETCH_RESIDENCY_COUNTS_FAILURE,
+        payload: message,
+      });
+    }
+  },
+);
 
-export const fetchResidencies = () => async (dispatch: AppDispatch) => {
-  dispatch({ type: FETCH_RESIDENCIES_REQUEST });
-  try {
-    const data = await fetchResidenciesApi();
-    dispatch({
-      type: FETCH_RESIDENCIES_SUCCESS,
-      payload: data,
-    });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Failed to load residencies.';
-    dispatch({
-      type: FETCH_RESIDENCIES_FAILURE,
-      payload: message,
-    });
-  }
-};
+export const fetchResidencies = () => async (dispatch: AppDispatch) => dedupeInflight(
+  'residencies',
+  async () => {
+    dispatch({ type: FETCH_RESIDENCIES_REQUEST });
+    try {
+      const data = await fetchResidenciesApi();
+      dispatch({
+        type: FETCH_RESIDENCIES_SUCCESS,
+        payload: data,
+      });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to load residencies.';
+      dispatch({
+        type: FETCH_RESIDENCIES_FAILURE,
+        payload: message,
+      });
+    }
+  },
+);

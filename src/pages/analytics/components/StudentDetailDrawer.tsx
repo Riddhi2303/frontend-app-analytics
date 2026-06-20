@@ -25,6 +25,7 @@ import {
 
 type StudentDetailDrawerProps = {
   student: ApiStudent;
+  initialCourseCode?: string | null;
   onClose: () => void;
 };
 
@@ -112,9 +113,19 @@ const GateCallRow = ({ call }: { call: ApiGateCall }) => {
   );
 };
 
-const StudentDetailDrawer = ({ student, onClose }: StudentDetailDrawerProps) => {
+const StudentDetailDrawer = ({
+  student,
+  initialCourseCode = null,
+  onClose,
+}: StudentDetailDrawerProps) => {
   const courses = useMemo(() => pickPrimaryCoursesForDrawer(student.courses), [student.courses]);
-  const [activeCourseCode, setActiveCourseCode] = useState(() => courses[0]?.course_code.toUpperCase() ?? '');
+  const [activeCourseCode, setActiveCourseCode] = useState(() => {
+    const preferred = initialCourseCode?.toUpperCase();
+    if (preferred && courses.some((course) => course.course_code.toUpperCase() === preferred)) {
+      return preferred;
+    }
+    return courses[0]?.course_code.toUpperCase() ?? '';
+  });
   const [detailByCourseId, setDetailByCourseId] = useState<Record<string, CourseDetailState>>({});
 
   const activeCourse = useMemo(
@@ -123,9 +134,13 @@ const StudentDetailDrawer = ({ student, onClose }: StudentDetailDrawerProps) => 
   );
 
   useEffect(() => {
-    setActiveCourseCode(courses[0]?.course_code.toUpperCase() ?? '');
+    const preferred = initialCourseCode?.toUpperCase();
+    const nextCode = preferred && courses.some((course) => course.course_code.toUpperCase() === preferred)
+      ? preferred
+      : courses[0]?.course_code.toUpperCase() ?? '';
+    setActiveCourseCode(nextCode);
     setDetailByCourseId({});
-  }, [student.id, courses]);
+  }, [student.id, courses, initialCourseCode]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {

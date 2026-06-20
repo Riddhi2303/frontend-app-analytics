@@ -4,6 +4,7 @@ import {
   FETCH_FACET_COUNTS_FAILURE,
   FETCH_FACET_COUNTS_PARTIAL_SUCCESS,
   FETCH_FACET_COUNTS_REQUEST,
+  FETCH_FACET_COUNTS_SUCCESS,
   FETCH_FILTER_COUNTS_FAILURE,
   FETCH_FILTER_COUNTS_REQUEST,
   FETCH_FILTER_COUNTS_SUCCESS,
@@ -144,14 +145,10 @@ const slice = createSlice({
       state.studentAnalyticsPagination.page = page;
       state.studentAnalyticsPagination.offset = (page - 1) * limit;
     },
-    /** Replace the active server-side filter set and reset to page 1. */
     setApiFilters: (state, action: PayloadAction<ApiFilters>) => {
       state.apiFilters = action.payload;
       state.studentAnalyticsPagination.page = 1;
       state.studentAnalyticsPagination.offset = 0;
-      if (!hasReadinessApiFilter(action.payload)) {
-        state.sidebarScopedStudentTotal = null;
-      }
     },
   },
   extraReducers: (builder) => {
@@ -193,18 +190,23 @@ const slice = createSlice({
         (action) => action.type === FETCH_FACET_COUNTS_REQUEST,
         (state) => {
           state.topFilterCountsLoading = {
-            ...initialTopFilterCountsLoading(),
+            all: true,
             notReady: true,
             ready: true,
             inactive: true,
           };
           state.topFilterCountsError = null;
-          state.topFilterCounts = {
-            all: state.topFilterCounts?.all ?? 0,
-            notReady: 0,
-            ready: 0,
-            inactive: 0,
-          };
+        },
+      )
+      .addMatcher(
+        (action): action is {
+          type: typeof FETCH_FACET_COUNTS_SUCCESS;
+          payload: TopFilterCounts;
+        } => action.type === FETCH_FACET_COUNTS_SUCCESS,
+        (state, action) => {
+          state.topFilterCounts = action.payload;
+          state.topFilterCountsLoading = initialTopFilterCountsLoading();
+          state.topFilterCountsError = null;
         },
       )
       .addMatcher(

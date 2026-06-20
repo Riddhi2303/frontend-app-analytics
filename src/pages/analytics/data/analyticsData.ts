@@ -518,12 +518,18 @@ export const buildCohortFiltersFromResidencies = (
     results.length > 0 ? countReadyStudentsByResidency(results) : {}
   );
 
+  const lookupCount = (map: Record<string, number>, residency: ApiResidency) => (
+    map[residency.name]
+    ?? map[String(residency.id)]
+    ?? 0
+  );
+
   return residencies.map((residency) => ({
     id: residency.id,
     label: residency.name,
     schedule: formatResidencySchedule(residency.start_date, residency.end_date),
-    total: perResidency[residency.name] ?? 0,
-    ready: readyByResidency[residency.name] ?? 0,
+    total: lookupCount(perResidency, residency),
+    ready: lookupCount(readyByResidency, residency),
     checked: false,
   }));
 };

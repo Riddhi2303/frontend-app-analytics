@@ -13,6 +13,12 @@ type AnalyticsFiltersRowProps = {
     ready?: boolean;
     inactive?: boolean;
   };
+  countsHasValue?: {
+    all?: boolean;
+    notReady?: boolean;
+    ready?: boolean;
+    inactive?: boolean;
+  };
   counts: {
     all: number;
     notReady: number;
@@ -39,6 +45,7 @@ const AnalyticsFiltersRow = ({
   selectedReadiness,
   onReadinessChange,
   countsLoading = {},
+  countsHasValue = {},
   counts,
   pagination,
   onPageChange,
@@ -103,21 +110,25 @@ const AnalyticsFiltersRow = ({
           <span className="label">Showing:</span>
           {chips.map((chip) => {
             const isActive = selectedReadiness === chip.id;
+            const loadingKey = chipLoadingKey[chip.id];
+            const isLoading = Boolean(countsLoading[loadingKey]);
+            const hasValue = countsHasValue[loadingKey] ?? chip.count > 0;
             return (
               <button
                 key={chip.id}
                 type="button"
-                className={`chip ${isActive ? 'active' : ''} ${chip.warn ? 'chip--warn' : ''}`}
+                className={`chip ${isActive ? 'active' : ''} ${chip.warn ? 'chip--warn' : ''} ${isLoading ? 'chip--loading' : ''}`}
                 onClick={() => onReadinessChange(chip.id)}
               >
+                {isLoading && (
+                  <span className="chip-leading-spinner" aria-label="Loading count">
+                    <SpinnerIcon size={12} />
+                  </span>
+                )}
                 <ChipRadioIcon active={isActive} />
                 <span className="chip-label">{chip.label}</span>
                 <span className="chip-count" aria-live="polite">
-                  {countsLoading[chipLoadingKey[chip.id]] ? (
-                    <SpinnerIcon />
-                  ) : (
-                    `(${chip.count})`
-                  )}
+                  {(!isLoading || hasValue) && `(${chip.count})`}
                 </span>
               </button>
             );

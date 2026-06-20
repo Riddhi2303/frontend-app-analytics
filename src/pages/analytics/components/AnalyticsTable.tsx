@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { CourseMetric, StudentRecord } from '../data/analyticsData';
 import SpinnerIcon from './SpinnerIcon';
 
@@ -6,7 +7,7 @@ type AnalyticsTableProps = {
   courseCodes: string[];
   loading?: boolean;
   selectedStudentId?: number | null;
-  onStudentSelect?: (studentId: number) => void;
+  onStudentSelect?: (studentId: number, courseCode?: string) => void;
 };
 
 const PhoneIcon = () => (
@@ -204,6 +205,11 @@ const AnalyticsTable = ({
               onStudentSelect?.(student.id);
             };
 
+            const handleCourseActivate = (courseCode: string) => (event: MouseEvent) => {
+              event.stopPropagation();
+              onStudentSelect?.(student.id, courseCode);
+            };
+
             return (
               <tr
                 key={student.id}
@@ -253,7 +259,14 @@ const AnalyticsTable = ({
                 </td>
                 {courseCodes.map((code) => (
                   <td key={code} className="metric-cell">
-                    {metricCard(student.courseMetrics[code] ?? null)}
+                    <button
+                      type="button"
+                      className="metric-cell-button"
+                      onClick={onStudentSelect ? handleCourseActivate(code) : undefined}
+                      aria-label={`Open ${code} details for ${student.name}`}
+                    >
+                      {metricCard(student.courseMetrics[code] ?? null)}
+                    </button>
                   </td>
                 ))}
               </tr>

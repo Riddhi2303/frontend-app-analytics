@@ -10,7 +10,6 @@ import {
   applyReadinessApiFilter,
   buildSidebarApiFilters,
   DEFAULT_SIDEBAR_FILTER_KEY,
-  hasReadinessApiFilter,
   hasSidebarApiFilters,
   serializeApiFilters,
   type ReadinessFilter,
@@ -24,6 +23,7 @@ import StudentDetailDrawer from './components/StudentDetailDrawer';
 import {
   buildCohortFiltersFromResidencies,
   buildNotAssignedFilter,
+  buildReadinessCounts,
   buildStudentFilters,
   collectCourseCodes,
   mapStudentsFromApi,
@@ -98,6 +98,7 @@ const AnalyticsPage = () => {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedReadiness, setSelectedReadiness] = useState<ReadinessFilter>('all');
   const [selectedStudentId, setSelectedStudentId] = useState<number | null>(null);
+  const [selectedCourseCode, setSelectedCourseCode] = useState<string | null>(null);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -107,6 +108,15 @@ const AnalyticsPage = () => {
   }, [searchValue]);
 
   const sidebarCounts = filterCounts ?? EMPTY_COUNTS;
+  const cohortCountData = residencyCounts ?? apiCounts;
+  const cohortCountsReady = Boolean(cohortCountData?.per_residency);
+  const enrollmentCountsLoading = filterCountsLoading;
+  /** Only show cohort spinner while the dedicated residency-counts request is in flight. */
+  const cohortCountsLoading = residencies.length > 0
+    && !cohortCountsReady
+    && residencyCountsLoading;
+
+  const enrollmentCountsReady = filterCounts != null;
 
   /** Cohort residency ids from residencies API (do not wait for students list). */
   const cohortIdsByLabel = useMemo(() => {
@@ -137,42 +147,58 @@ const AnalyticsPage = () => {
 
   /** Cohort list renders when residencies load; counts update when facet API returns. */
   const cohortFilters = useMemo(
-    () => buildCohortFiltersFromResidencies(residencies, residencyCounts),
-    [residencies, residencyCounts],
+    () => buildCohortFiltersFromResidencies(residencies, cohortCountData),
+    [residencies, cohortCountData],
+  );
+
+  /** Sidebar + search scope for top chip `/counts/filters` calls (no readiness). */
+  const topCountScopeFilters = useMemo(() => {
+    const q = debouncedSearch.trim();
+    return q ? { ...sidebarFilters, search: q } : sidebarFilters;
+  }, [debouncedSearch, sidebarFilters]);
+
+  const topCountsFetchKey = useMemo(
+    () => serializeApiFilters(topCountScopeFilters),
+    [topCountScopeFilters],
   );
 
   const sidebarFilterActive = hasSidebarApiFilters(sidebarFilters);
+  const isGlobalTopCountScope = topCountsFetchKey === '{}';
 
   const readinessCounts = useMemo(() => {
-    const partial = topFilterCounts ?? {
+    const globalTopCounts = filterCounts ? buildReadinessCounts(filterCounts) : null;
+    const partial = (isGlobalTopCountScope
+      ? (topFilterCounts ?? globalTopCounts)
+      : topFilterCounts) ?? {
       all: 0,
       notReady: 0,
       ready: 0,
       inactive: 0,
     };
 
+    const searchActive = Boolean(debouncedSearch.trim());
+
     if (!sidebarFilterActive) {
-      const searchActive = Boolean(debouncedSearch.trim());
       return {
         all: searchActive
           ? (pagination.count ?? 0)
-          : (filterCounts?.all ?? sidebarScopedStudentTotal ?? pagination.count ?? 0),
+          : (partial.all || filterCounts?.all || sidebarScopedStudentTotal || pagination.count || 0),
         notReady: partial.notReady,
         ready: partial.ready,
         inactive: partial.inactive,
       };
     }
 
-    const searchActive = Boolean(debouncedSearch.trim());
     return {
       ...partial,
       all: searchActive
         ? (pagination.count ?? 0)
-        : (sidebarScopedStudentTotal ?? 0),
+        : (sidebarScopedStudentTotal ?? partial.all ?? 0),
     };
   }, [
     debouncedSearch,
     filterCounts,
+    isGlobalTopCountScope,
     pagination.count,
     sidebarFilterActive,
     sidebarScopedStudentTotal,
@@ -180,37 +206,66 @@ const AnalyticsPage = () => {
   ]);
 
   const topChipCountsLoading = useMemo(() => {
+    const searchActive = Boolean(debouncedSearch.trim());
+    const globalCountsLoading = filterCountsLoading;
+    const scopedCountsLoading = topFilterCountsLoading;
+
     if (sidebarFilterActive) {
-      const searchActive = Boolean(debouncedSearch.trim());
-      const awaitingSidebarTotal = !searchActive
-        && sidebarScopedStudentTotal == null
-        && loading
-        && !hasReadinessApiFilter(apiFilters);
       return {
-        all: searchActive ? loading : awaitingSidebarTotal,
-        notReady: topFilterCountsLoading.notReady,
-        ready: topFilterCountsLoading.ready,
-        inactive: topFilterCountsLoading.inactive,
+        all: searchActive ? loading : scopedCountsLoading.all,
+        notReady: scopedCountsLoading.notReady,
+        ready: scopedCountsLoading.ready,
+        inactive: scopedCountsLoading.inactive,
       };
     }
-    const searchActive = Boolean(debouncedSearch.trim());
+
+    if (isGlobalTopCountScope) {
+      const chipLoading = searchActive ? loading : globalCountsLoading;
+      return {
+        all: chipLoading,
+        notReady: globalCountsLoading,
+        ready: globalCountsLoading,
+        inactive: globalCountsLoading,
+      };
+    }
+
     return {
-      all: searchActive ? loading : filterCountsLoading,
-      notReady: topFilterCountsLoading.notReady,
-      ready: topFilterCountsLoading.ready,
-      inactive: topFilterCountsLoading.inactive,
+      all: searchActive ? loading : scopedCountsLoading.all,
+      notReady: scopedCountsLoading.notReady,
+      ready: scopedCountsLoading.ready,
+      inactive: scopedCountsLoading.inactive,
     };
   }, [
-    apiFilters,
     debouncedSearch,
     filterCountsLoading,
+    isGlobalTopCountScope,
     loading,
     sidebarFilterActive,
-    sidebarScopedStudentTotal,
     topFilterCountsLoading,
   ]);
 
-  const sidebarCountsLoading = filterCountsLoading || residencyCountsLoading;
+  const topChipCountsHasValue = useMemo(() => {
+    const searchActive = Boolean(debouncedSearch.trim());
+    const hasScopedCounts = isGlobalTopCountScope
+      ? filterCounts != null
+      : topFilterCounts != null;
+
+    return {
+      all: searchActive
+        ? pagination.count != null
+        : (filterCounts != null || topFilterCounts != null || sidebarScopedStudentTotal != null),
+      notReady: hasScopedCounts,
+      ready: hasScopedCounts,
+      inactive: hasScopedCounts,
+    };
+  }, [
+    debouncedSearch,
+    filterCounts,
+    isGlobalTopCountScope,
+    pagination.count,
+    sidebarScopedStudentTotal,
+    topFilterCounts,
+  ]);
 
   const analyticsUserKey = useMemo(() => {
     if (!authenticatedUser || typeof authenticatedUser !== 'object') { return ''; }
@@ -230,17 +285,6 @@ const AnalyticsPage = () => {
 
   const filterKey = useMemo(() => serializeApiFilters(filters), [filters]);
 
-  /** Sidebar + search scope for top chip `/counts/filters` calls (no readiness). */
-  const topCountScopeFilters = useMemo(() => {
-    const q = debouncedSearch.trim();
-    return q ? { ...sidebarFilters, search: q } : sidebarFilters;
-  }, [debouncedSearch, sidebarFilters]);
-
-  const topCountsFetchKey = useMemo(
-    () => serializeApiFilters(topCountScopeFilters),
-    [topCountScopeFilters],
-  );
-
   // ─── Residencies + left sidebar counts + top readiness counts ─────────────
   useEffect(() => {
     dispatch(fetchResidencies());
@@ -249,21 +293,24 @@ const AnalyticsPage = () => {
   }, [dispatch]);
 
   useEffect(() => {
+    if (isGlobalTopCountScope) {
+      return;
+    }
     if (lastFacetFetchKeyRef.current === topCountsFetchKey) {
       return;
     }
     lastFacetFetchKeyRef.current = topCountsFetchKey;
     dispatch(fetchTopFilterCounts(topCountScopeFilters));
-  }, [dispatch, topCountScopeFilters, topCountsFetchKey]);
+  }, [dispatch, isGlobalTopCountScope, topCountScopeFilters, topCountsFetchKey]);
 
   // ─── Students table: sidebar + optional top readiness filter ─────────────────
   useEffect(() => {
     if (lastSyncedFilterKeyRef.current !== filterKey) {
       lastSyncedFilterKeyRef.current = filterKey;
+      lastFetchKeyRef.current = null;
       if (currentPage !== 1) {
         dispatch(setApiFilters(filters));
         dispatch(setPage(1));
-        lastFetchKeyRef.current = null;
         return;
       }
       if (serializeApiFilters(apiFilters) !== filterKey) {
@@ -294,6 +341,7 @@ const AnalyticsPage = () => {
     const stillVisible = studentAnalyticsResults.some((student) => student.id === selectedStudentId);
     if (!stillVisible) {
       setSelectedStudentId(null);
+      setSelectedCourseCode(null);
     }
   }, [selectedStudentId, studentAnalyticsResults]);
 
@@ -321,7 +369,9 @@ const AnalyticsPage = () => {
     dispatch(fetchFilterCounts());
     dispatch(fetchResidencyCounts());
     const scopeFilters = q ? { ...sidebarFilters, search: q } : sidebarFilters;
-    dispatch(fetchTopFilterCounts(scopeFilters));
+    if (serializeApiFilters(scopeFilters) !== '{}') {
+      dispatch(fetchTopFilterCounts(scopeFilters));
+    }
     dispatch(fetchStudentAnalytics({
       page: currentPage,
       pageSize: PAGE_SIZE,
@@ -345,7 +395,10 @@ const AnalyticsPage = () => {
           cohortFilters={cohortFilters}
           selectedSidebarFilter={selectedSidebarFilter}
           onSelectSidebarFilter={selectSidebarFilter}
-          countsLoading={sidebarCountsLoading}
+          enrollmentCountsLoading={enrollmentCountsLoading}
+          enrollmentCountsReady={enrollmentCountsReady}
+          cohortCountsLoading={cohortCountsLoading}
+          cohortCountsReady={cohortCountsReady}
         />
         <section className="analytics-main">
           <AnalyticsFiltersRow
@@ -356,6 +409,7 @@ const AnalyticsPage = () => {
             onReadinessChange={setSelectedReadiness}
             counts={readinessCounts}
             countsLoading={topChipCountsLoading}
+            countsHasValue={topChipCountsHasValue}
             pagination={{
               currentPage,
               totalPages: Math.max(pagination.totalPages || 1, 1),
@@ -380,14 +434,24 @@ const AnalyticsPage = () => {
               courseCodes={courseCodes}
               loading={loading}
               selectedStudentId={selectedStudentId}
-              onStudentSelect={(studentId) => {
-                setSelectedStudentId((current) => (current === studentId ? null : studentId));
+              onStudentSelect={(studentId, courseCode) => {
+                if (selectedStudentId === studentId && !courseCode) {
+                  setSelectedStudentId(null);
+                  setSelectedCourseCode(null);
+                  return;
+                }
+                setSelectedStudentId(studentId);
+                setSelectedCourseCode(courseCode ?? null);
               }}
             />
             {selectedStudent && (
               <StudentDetailDrawer
                 student={selectedStudent}
-                onClose={() => setSelectedStudentId(null)}
+                initialCourseCode={selectedCourseCode}
+                onClose={() => {
+                  setSelectedStudentId(null);
+                  setSelectedCourseCode(null);
+                }}
               />
             )}
           </div>
