@@ -11,6 +11,20 @@ body,
   overflow: hidden;
 }
 
+#root {
+  display: flex;
+  flex-direction: column;
+}
+
+/* AppProvider wrapper — header + analytics share the viewport */
+#root > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* ─── Figma Design Tokens ──────────────────────────────────────────────────── */
 :root {
   /* Color tokens */
@@ -43,8 +57,7 @@ body,
 
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  height: 100dvh;
+  flex: 1;
   min-height: 0;
   overflow: hidden;
   background: var(--mash-page-bg);
@@ -676,6 +689,9 @@ body,
   border-radius: 0;
   overflow: auto;
   -webkit-overflow-scrolling: touch;
+  padding-bottom: 16px;
+  scroll-padding-bottom: 16px;
+  box-sizing: border-box;
 
   --mash-table-font: Lato, Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --mash-table-header-font: "Titillium Web", Lato, Inter, system-ui, sans-serif;

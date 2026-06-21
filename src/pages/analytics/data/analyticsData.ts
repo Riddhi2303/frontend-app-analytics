@@ -188,11 +188,76 @@ const countReadyStudentsByResidency = (students: ApiStudent[]): Record<string, n
   }, {})
 );
 
+const MONTH_INDEX: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+};
+
+const DISPLAY_DATETIME_RE = /^(\d{1,2})\s+(\w{3})\s+(\d{4}),\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
+const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+/** Parse API date/time strings as local wall-clock time (not UTC-shifted). */
+export const parseApiDateTime = (value: string | null | undefined): Date | null => {
+  if (!value) {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const dateOnlyMatch = trimmed.match(DATE_ONLY_RE);
+  if (dateOnlyMatch) {
+    const [, year, month, day] = dateOnlyMatch;
+    return new Date(Number(year), Number(month) - 1, Number(day));
+  }
+
+  const displayMatch = trimmed.match(DISPLAY_DATETIME_RE);
+  if (displayMatch) {
+    const [, day, monthStr, year, hour, minute, ampm] = displayMatch;
+    const month = MONTH_INDEX[monthStr.toLowerCase().slice(0, 3)];
+    if (month == null) {
+      return null;
+    }
+    let hours = Number(hour);
+    const minutes = Number(minute);
+    if (ampm.toUpperCase() === 'PM' && hours !== 12) {
+      hours += 12;
+    }
+    if (ampm.toUpperCase() === 'AM' && hours === 12) {
+      hours = 0;
+    }
+    return new Date(Number(year), month, Number(day), hours, minutes);
+  }
+
+  const parsed = new Date(trimmed);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const formatLocalDate = (date: Date) => date.toLocaleDateString(undefined, {
+  day: '2-digit',
+  month: 'short',
+});
+
+const formatLocalTime = (date: Date) => date.toLocaleTimeString(undefined, {
+  hour: 'numeric',
+  minute: '2-digit',
+  hour12: true,
+});
+
 const formatCall = (value: string | null) => {
   if (!value) return '-';
-  const date = new Date(value);
-  return date.toLocaleString('en-IN', {
-    day: '2-digit', month: 'short', hour: 'numeric', minute: '2-digit', hour12: true,
+  const date = parseApiDateTime(value);
+  if (!date) {
+    return value;
+  }
+  return date.toLocaleString(undefined, {
+    day: '2-digit',
+    month: 'short',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
   });
 };
 
@@ -260,49 +325,39 @@ export const formatResidencyRange = (
   if (!startDate || !endDate) {
     return null;
   }
-  const start = new Date(startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-  const end = new Date(endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-  return `${start} - ${end}`;
+  const start = parseApiDateTime(startDate);
+  const end = parseApiDateTime(endDate);
+  if (!start || !end) {
+    return null;
+  }
+  return `${formatLocalDate(start)} - ${formatLocalDate(end)}`;
 };
 
 export const formatDrawerDateTime = (value: string | null | undefined) => {
-  if (!value) {
+  const date = parseApiDateTime(value);
+  if (!date) {
     return null;
   }
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-  const day = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-  const time = date.toLocaleTimeString('en-IN', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-  return `${day}, ${time}`;
+  return `${formatLocalDate(date)}, ${formatLocalTime(date)}`;
 };
 
 export const formatDrawerTimeRange = (
   start: string | null | undefined,
   end?: string | null | undefined,
 ) => {
-  const startLabel = formatDrawerDateTime(start);
-  if (!startLabel) {
+  const startDate = parseApiDateTime(start);
+  if (!startDate) {
     return null;
   }
+  const startLabel = `${formatLocalDate(startDate)}, ${formatLocalTime(startDate)}`;
   if (!end) {
     return startLabel;
   }
-  const endDate = new Date(end);
-  if (Number.isNaN(endDate.getTime())) {
+  const endDate = parseApiDateTime(end);
+  if (!endDate) {
     return startLabel;
   }
-  const endTime = endDate.toLocaleTimeString('en-IN', {
-    hour: 'numeric',
-    minute: '2-digit',
-    hour12: true,
-  });
-  return `${startLabel} - ${endTime}`;
+  return `${startLabel} - ${formatLocalTime(endDate)}`;
 };
 
 export const studentDisplayName = (student: ApiStudent) => {
@@ -414,16 +469,7 @@ export const getCourseDrawerTabStatus = (course: ApiCourse): CourseDrawerTabStat
 export const formatGateCallTimeRange = (
   start: string | null | undefined,
   end?: string | null | undefined,
-) => {
-  if (!start) {
-    return null;
-  }
-  if (!end) {
-    return start;
-  }
-  const endTimeOnly = end.includes(', ') ? end.split(', ').slice(1).join(', ') : end;
-  return `${start} - ${endTimeOnly}`;
-};
+) => formatDrawerTimeRange(start, end);
 
 /** Collect all unique course codes (upper-cased) across all students, in the prescribed order. */
 export const collectCourseCodes = (results: ApiStudent[]): string[] => {
@@ -497,10 +543,8 @@ export const buildNotAssignedFilter = (
 });
 
 const formatResidencySchedule = (startDate: string | null | undefined, endDate: string | null | undefined) => {
-  if (!startDate || !endDate) return '-';
-  const start = new Date(startDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-  const end = new Date(endDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-  return `${start} - ${end}`;
+  const range = formatResidencyRange(startDate, endDate);
+  return range ?? '-';
 };
 
 /** Cohort sidebar from residencies API — visible as soon as residencies load; counts from facet API. */
