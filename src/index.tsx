@@ -23,12 +23,18 @@ if (!rootEl) {
 subscribe(APP_READY, () => {
   ReactDOM.render(
     <AppProvider store={store}>
-      <Header />
-      <Routes>
-        <Route path="/analytics" element={<AnalyticsPage />} />
-        <Route path="/" element={<Navigate to="/analytics" replace />} />
-        <Route path="*" element={<Navigate to="/analytics" replace />} />
-      </Routes>
+      <div className="analytics-shell">
+        <div className="analytics-shell-header">
+          <Header />
+        </div>
+        <div className="analytics-app-body">
+          <Routes>
+            <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/" element={<Navigate to="/analytics" replace />} />
+            <Route path="*" element={<Navigate to="/analytics" replace />} />
+          </Routes>
+        </div>
+      </div>
     </AppProvider>,
     rootEl,
   );

@@ -2,22 +2,45 @@
 
 @import url("https://fonts.googleapis.com/css2?family=Lato:ital,wght@0,400;0,700;1,400&family=Titillium+Web:wght@600&display=swap");
 
-/* Lock app shell to viewport — analytics table scrolls internally */
+/* Shell: header + analytics fill viewport; sidebar fixed, table scrolls on the right */
 html,
-body,
-#root {
+body {
   height: 100%;
   margin: 0;
+}
+
+body {
   overflow: hidden;
 }
 
 #root {
   display: flex;
   flex-direction: column;
+  height: 100%;
 }
 
-/* AppProvider wrapper — header + analytics share the viewport */
 #root > div {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.analytics-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+}
+
+.analytics-shell-header {
+  flex-shrink: 0;
+}
+
+.analytics-app-body {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -25,34 +48,11 @@ body,
   overflow: hidden;
 }
 
-/* ─── Figma Design Tokens ──────────────────────────────────────────────────── */
-:root {
-  /* Color tokens */
-  --color-lightning-yellow: #EA8600;
-  --color-tundora:          #4A4A4A;
-  --color-white:            #FFFFFF;
-  --color-alabaster:        #F8F8F8;
-  --color-silver:           #C0C0C0;
-  --color-gray:             #888888;
-  --color-ship-gray:        #3D3D3D;
-
-  /* Typography tokens (size / line-height: auto) */
-  --text-h1:           24px;
-  --text-h2:           16px;
-  --text-h3:           14px;
-  --text-h4-title:     40px;
-  --text-body1:        20px;
-  --text-body2-italic: 14px;
-  --text-body3:        14px;
-  --text-body4:        12px;
-}
-
-/* MASH analytics — tokens aligned to design file (Figma: MASH) */
 .analytics-page {
-  --mash-page-bg:    var(--color-alabaster);
-  --mash-panel:      var(--color-white);
-  --mash-border:     var(--color-silver);
-  --mash-orange:     var(--color-lightning-yellow);
+  --mash-page-bg: var(--color-alabaster);
+  --mash-panel: var(--color-white);
+  --mash-border: var(--color-silver);
+  --mash-orange: var(--color-lightning-yellow);
   --mash-level-band: #ebe7dc;
 
   display: flex;
@@ -64,6 +64,30 @@ body,
   color: var(--color-tundora);
   font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
 }
+
+/* ─── Figma Design Tokens ──────────────────────────────────────────────────── */
+:root {
+  /* Color tokens */
+  --color-lightning-yellow: #EA8600;
+  --color-tundora: #4A4A4A;
+  --color-white: #FFFFFF;
+  --color-alabaster: #F8F8F8;
+  --color-silver: #C0C0C0;
+  --color-gray: #888888;
+  --color-ship-gray: #3D3D3D;
+
+  /* Typography tokens (size / line-height: auto) */
+  --text-h1: 24px;
+  --text-h2: 16px;
+  --text-h3: 14px;
+  --text-h4-title: 40px;
+  --text-body1: 20px;
+  --text-body2-italic: 14px;
+  --text-body3: 14px;
+  --text-body4: 12px;
+}
+
+/* MASH analytics page shell (tokens on .analytics-page above) */
 
 .analytics-top-nav {
   display: flex;
@@ -408,18 +432,15 @@ body,
 }
 
 .analytics-content {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
+  display: flex;
   flex: 1;
-  gap: 0;
-  padding: 0;
-  align-items: stretch;
   min-height: 0;
   overflow: hidden;
 }
 
 .analytics-main {
   display: flex;
+  flex: 1;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
@@ -431,11 +452,17 @@ body,
 
 .analytics-table-area {
   position: relative;
-  display: flex;
   flex: 1;
-  flex-direction: column;
   min-height: 0;
   overflow: hidden;
+}
+
+.analytics-table-area > .analytics-table-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .analytics-table-loading-overlay {
@@ -446,6 +473,7 @@ body,
   align-items: center;
   justify-content: center;
   background: rgb(248 248 248 / 72%);
+  pointer-events: none;
 }
 
 .analytics-table-error {
@@ -458,15 +486,17 @@ body,
 }
 
 .analytics-sidebar {
+  flex: 0 0 220px;
+  width: 220px;
+  align-self: stretch;
   background: var(--mash-panel);
   border: none;
   border-right: 1px solid var(--mash-border);
   border-radius: 0;
   padding: 10px 10px 16px 11px;
-  min-height: 0;
   box-sizing: border-box;
-  overflow-x: hidden;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
   font-family: Lato, Inter, system-ui, sans-serif;
 
   .sidebar-section-title {
@@ -674,23 +704,19 @@ body,
   }
 }
 
-.analytics-sidebar .filter-list + .sidebar-section-title {
+.analytics-sidebar .filter-list+.sidebar-section-title {
   margin-top: 16px;
 }
 
 /* Table tokens — Figma MASH-UI node 24:6972 */
 .analytics-table-wrap {
-  flex: 1;
-  min-height: 0;
   margin-top: 0;
   background: var(--mash-panel);
   border: none;
   border-top: none;
   border-radius: 0;
-  overflow: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 16px;
-  scroll-padding-bottom: 16px;
+  padding-bottom: 24px;
+  scroll-padding-bottom: 24px;
   box-sizing: border-box;
 
   --mash-table-font: Lato, Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -717,11 +743,25 @@ body,
   /* LVL row: 26px cell + 3px orange top border */
   --mash-thead-level-height: 29px;
 
-  .col-name { width: var(--mash-name-col-width); }
-  .col-ongoing { width: 119px; }
-  .col-last-call { width: 119px; }
-  .col-next-call { width: 101px; }
-  .col-course { width: 225px; }
+  .col-name {
+    width: var(--mash-name-col-width);
+  }
+
+  .col-ongoing {
+    width: 119px;
+  }
+
+  .col-last-call {
+    width: 119px;
+  }
+
+  .col-next-call {
+    width: 101px;
+  }
+
+  .col-course {
+    width: 225px;
+  }
 
   th,
   td {
@@ -1196,7 +1236,9 @@ body,
 }
 
 @keyframes spinner-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .spinner-icon {
