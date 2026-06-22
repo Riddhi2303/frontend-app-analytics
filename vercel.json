@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/student-analytics/api/:path*",
+      "destination": "https://mash.makersasylum.com/student-analytics/api/:path*"
+    },
+    {
+      "source": "/mentoring/api/:path*",
+      "destination": "https://mash.makersasylum.com/mentoring/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
