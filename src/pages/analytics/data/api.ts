@@ -5,6 +5,7 @@ import type {
   ApiGateCallsResponse,
   ApiOraDetailsResponse,
   ApiResidency,
+  ApiStudent,
   ApiStudentAnalyticsResponse,
 } from "./analyticsData";
 
@@ -400,4 +401,55 @@ export async function fetchOraDetailsApi({
     return payload;
   }
   return payload.results ?? [];
+}
+
+export type MyRolesResponse = {
+  is_staff: boolean;
+  is_superuser: boolean;
+  is_mentor: boolean;
+};
+
+const MENTORING_MY_ROLES_URL = "/mentoring/api/v1/my-roles/";
+
+/** Mentor + staff/admin sees the full analytics dashboard. */
+export const isMentorAdminView = (roles: MyRolesResponse): boolean =>
+  Boolean(roles.is_mentor && (roles.is_staff || roles.is_superuser));
+
+/**
+ * Current user roles for analytics routing.
+ * GET /mentoring/api/v1/my-roles/
+ */
+export async function fetchMyRolesApi(): Promise<MyRolesResponse> {
+  const { data } = await axios.get(MENTORING_MY_ROLES_URL);
+  const payload = data as Partial<MyRolesResponse>;
+  return {
+    is_staff: Boolean(payload?.is_staff),
+    is_superuser: Boolean(payload?.is_superuser),
+    is_mentor: Boolean(payload?.is_mentor),
+  };
+}
+
+/**
+ * Current user's student profile for the student analytics view.
+ * Tries `/students/me/` then falls back to the first result from the students list.
+ */
+export async function fetchMyStudentProfileApi(): Promise<ApiStudent> {
+  const meUrl = getBaseUrl().replace(/\/students\/?$/, "/students/me/");
+
+  try {
+    const { data } = await axios.get(meUrl);
+    if (data && typeof data === "object" && "id" in data) {
+      return data as ApiStudent;
+    }
+  } catch {
+    // Fall through to list endpoint.
+  }
+
+  const { data } = await axios.get(getBaseUrl(), { params: { page: 1, page_size: 1 } });
+  const payload = data as ApiStudentAnalyticsResponse;
+  const student = payload.results?.[0];
+  if (!student) {
+    throw new Error("Student profile not found.");
+  }
+  return student;
 }

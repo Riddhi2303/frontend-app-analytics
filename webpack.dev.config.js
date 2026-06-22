@@ -10,6 +10,12 @@ module.exports = createConfig('webpack-dev-server', {
         changeOrigin: true,
         secure: true,
       },
+      {
+        context: ['/mentoring/api'],
+        target: 'https://mash.makersasylum.com',
+        changeOrigin: true,
+        secure: true,
+      },
     ],
   },
 });
