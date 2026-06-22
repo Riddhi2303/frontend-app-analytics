@@ -177,8 +177,8 @@ type FetchStudentsParams = {
   filters?: ApiFilters;
 };
 
-const getBaseUrl = () => `/student-analytics/api/students/`;
-
+// const getBaseUrl = () => `/student-analytics/api/students/`;
+const getBaseUrl = () => `https://mash.makersasylum.com/student-analytics/api/students/`;
 const buildFilterParams = (filters: ApiFilters = {}) => {
   const params: Record<string, string | number | boolean> = {};
 
