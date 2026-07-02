@@ -2,69 +2,49 @@ import { useEffect, useState } from 'react';
 
 import { Spinner } from '@openedx/paragon';
 
-import { fetchMyRolesApi, isMentorAdminView } from './data/api';
 import MentorAnalyticsDashboard from './MentorAnalyticsDashboard';
 import StudentAnalyticsView from './components/StudentAnalyticsView';
+import { fetchMyRolesApi, isMentorAdminView, type MyRolesResponse } from './data/api';
 
 import './analytics.scss';
 
 const AnalyticsPage = () => {
-  const [rolesLoading, setRolesLoading] = useState(true);
-  const [showMentorDashboard, setShowMentorDashboard] = useState(false);
-  const [rolesError, setRolesError] = useState<string | null>(null);
+  const [roles, setRoles] = useState<MyRolesResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
 
     const loadRoles = async () => {
-      setRolesLoading(true);
-      setRolesError(null);
       try {
-        const roles = await fetchMyRolesApi();
+        const result = await fetchMyRolesApi();
         if (!cancelled) {
-          setShowMentorDashboard(isMentorAdminView(roles));
+          setRoles(result);
         }
-      } catch (err) {
-        if (!cancelled) {
-          const message = err instanceof Error ? err.message : 'Failed to load user roles.';
-          setRolesError(message);
-          setShowMentorDashboard(false);
-        }
+      } catch {
+        // Fall back to student view when roles cannot be determined.
       } finally {
         if (!cancelled) {
-          setRolesLoading(false);
+          setLoading(false);
         }
       }
     };
 
     loadRoles();
-
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
-  if (rolesLoading) {
+  if (loading) {
     return (
       <main className="analytics-page">
         <div className="analytics-roles-loading" aria-busy="true" aria-live="polite">
-          <Spinner animation="border" screenReaderText="Loading analytics" />
+          <Spinner animation="border" screenReaderText="Loading" />
         </div>
       </main>
     );
   }
 
-  if (rolesError) {
-    return (
-      <main className="analytics-page">
-        <div className="analytics-roles-error" role="alert">
-          {rolesError}
-        </div>
-      </main>
-    );
-  }
-
-  if (showMentorDashboard) {
+  if (roles && isMentorAdminView(roles)) {
     return <MentorAnalyticsDashboard />;
   }
 

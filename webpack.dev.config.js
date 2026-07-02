@@ -16,6 +16,12 @@ module.exports = createConfig('webpack-dev-server', {
         changeOrigin: true,
         secure: true,
       },
+      {
+        context: ['/oauth2'],
+        target: 'https://mash.makersasylum.com',
+        changeOrigin: true,
+        secure: true,
+      },
     ],
   },
 });

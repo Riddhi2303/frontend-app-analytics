@@ -5,6 +5,8 @@ export type OngoingCourse = {
 };
 
 export type CourseMetric = {
+  courseCode: string;
+  courseName: string;
   gateCompleted: number;
   gateScheduled: number;
   gateTotal: number;
@@ -235,12 +237,12 @@ export const parseApiDateTime = (value: string | null | undefined): Date | null 
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
-const formatLocalDate = (date: Date) => date.toLocaleDateString(undefined, {
-  day: '2-digit',
+const formatLocalDate = (date: Date) => date.toLocaleDateString('en-US', {
   month: 'short',
+  day: 'numeric',
 });
 
-const formatLocalTime = (date: Date) => date.toLocaleTimeString(undefined, {
+const formatLocalTime = (date: Date) => date.toLocaleTimeString('en-US', {
   hour: 'numeric',
   minute: '2-digit',
   hour12: true,
@@ -269,6 +271,8 @@ const buildCourseMetric = (course: ApiCourse | undefined): CourseMetric | null =
   if (!course) return null;
   const ora = course.ora;
   return {
+    courseCode: course.course_code,
+    courseName: course.course_name ?? course.course_code,
     gateCompleted: course.gate.completed,
     gateScheduled: course.gate.scheduled ?? 0,
     gateTotal: course.gate.total,

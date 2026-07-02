@@ -178,7 +178,8 @@ type FetchStudentsParams = {
   filters?: ApiFilters;
 };
 
-const getBaseUrl = () => `/student-analytics/api/students/`;
+// const getBaseUrl = () => `/student-analytics/api/students/`;
+const getBaseUrl = () => `https://mash.makersasylum.com/student-analytics/api/students/`;
 
 const buildFilterParams = (filters: ApiFilters = {}) => {
   const params: Record<string, string | number | boolean> = {};
@@ -410,17 +411,46 @@ export type MyRolesResponse = {
 };
 
 const MENTORING_MY_ROLES_URL = "/mentoring/api/v1/my-roles/";
+const OAUTH2_TOKEN_URL = "/oauth2/access_token";
 
 /** Mentor + staff/admin sees the full analytics dashboard. */
 export const isMentorAdminView = (roles: MyRolesResponse): boolean =>
   Boolean(roles.is_mentor && (roles.is_staff || roles.is_superuser));
 
+let _cachedToken: { value: string; expiresAt: number } | null = null;
+
+async function fetchAccessTokenApi(): Promise<string> {
+  if (_cachedToken && Date.now() < _cachedToken.expiresAt) {
+    return _cachedToken.value;
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "password",
+    username: process.env.MASH_USERNAME ?? "",
+    password: process.env.MASH_PASSWORD ?? "",
+  });
+
+  const { data } = await axios.post(OAUTH2_TOKEN_URL, body, {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization: `Basic ${process.env.MASH_OAUTH_BASIC_AUTH}`,
+    },
+  });
+
+  const expiresIn: number = (data.expires_in ?? 3600) * 1000;
+  _cachedToken = { value: data.access_token as string, expiresAt: Date.now() + expiresIn - 60_000 };
+  return _cachedToken.value;
+}
+
 /**
  * Current user roles for analytics routing.
- * GET /mentoring/api/v1/my-roles/
+ * Fetches an OAuth2 token via password grant, then calls /my-roles/.
  */
 export async function fetchMyRolesApi(): Promise<MyRolesResponse> {
-  const { data } = await axios.get(MENTORING_MY_ROLES_URL);
+  const accessToken = await fetchAccessTokenApi();
+  const { data } = await axios.get(MENTORING_MY_ROLES_URL, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
   const payload = data as Partial<MyRolesResponse>;
   return {
     is_staff: Boolean(payload?.is_staff),
@@ -430,26 +460,16 @@ export async function fetchMyRolesApi(): Promise<MyRolesResponse> {
 }
 
 /**
- * Current user's student profile for the student analytics view.
- * Tries `/students/me/` then falls back to the first result from the students list.
+ * Logged-in student's own analytics profile.
+ * GET /student-analytics/api/students/me/
  */
 export async function fetchMyStudentProfileApi(): Promise<ApiStudent> {
-  const meUrl = getBaseUrl().replace(/\/students\/?$/, "/students/me/");
+  const url = getBaseUrl().replace(/\/students\/?$/, "/students/me/");
+  const { data } = await axios.get(url);
 
-  try {
-    const { data } = await axios.get(meUrl);
-    if (data && typeof data === "object" && "id" in data) {
-      return data as ApiStudent;
-    }
-  } catch {
-    // Fall through to list endpoint.
-  }
-
-  const { data } = await axios.get(getBaseUrl(), { params: { page: 1, page_size: 1 } });
-  const payload = data as ApiStudentAnalyticsResponse;
-  const student = payload.results?.[0];
-  if (!student) {
+  if (!data || typeof data !== "object" || !("id" in data)) {
     throw new Error("Student profile not found.");
   }
-  return student;
+
+  return data as ApiStudent;
 }
