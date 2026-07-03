@@ -5,6 +5,7 @@ import type {
   ApiGateCallsResponse,
   ApiOraDetailsResponse,
   ApiResidency,
+  ApiStudent,
   ApiStudentAnalyticsResponse,
 } from "./analyticsData";
 
@@ -400,4 +401,77 @@ export async function fetchOraDetailsApi({
     return payload;
   }
   return payload.results ?? [];
+}
+
+export type MyRolesResponse = {
+  is_staff: boolean;
+  is_superuser: boolean;
+  is_mentor: boolean;
+  is_student: boolean;
+};
+
+const MENTORING_MY_ROLES_URL = "/mentoring/api/v1/my-roles/";
+const OAUTH2_TOKEN_URL = "/oauth2/access_token";
+
+/** Superuser or mentor sees the full mentor analytics dashboard. */
+export const isMentorAdminView = (roles: MyRolesResponse): boolean =>
+  Boolean(roles.is_superuser || roles.is_mentor);
+
+let _cachedToken: { value: string; expiresAt: number } | null = null;
+
+async function fetchAccessTokenApi(): Promise<string> {
+  if (_cachedToken && Date.now() < _cachedToken.expiresAt) {
+    return _cachedToken.value;
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "password",
+    client_id: process.env.MASH_CLIENT_ID ?? "",
+    client_secret: process.env.MASH_CLIENT_SECRET ?? "",
+    username: process.env.MASH_USERNAME ?? "",
+    password: process.env.MASH_PASSWORD ?? "",
+  });
+
+  const { data } = await axios.post(OAUTH2_TOKEN_URL, body, {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+  });
+
+  const expiresIn: number = (data.expires_in ?? 3600) * 1000;
+  _cachedToken = { value: data.access_token as string, expiresAt: Date.now() + expiresIn - 60_000 };
+  return _cachedToken.value;
+}
+
+/**
+ * Current user roles for analytics routing.
+ * Fetches an OAuth2 token via password grant, then calls /my-roles/.
+ */
+export async function fetchMyRolesApi(): Promise<MyRolesResponse> {
+  const accessToken = await fetchAccessTokenApi();
+  const { data } = await axios.get(MENTORING_MY_ROLES_URL, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  const payload = data as Partial<MyRolesResponse>;
+  return {
+    is_staff: Boolean(payload?.is_staff),
+    is_superuser: Boolean(payload?.is_superuser),
+    is_mentor: Boolean(payload?.is_mentor),
+    is_student: Boolean(payload?.is_student),
+  };
+}
+
+/**
+ * Logged-in student's own analytics profile.
+ * GET /student-analytics/api/students/me/
+ */
+export async function fetchMyStudentProfileApi(): Promise<ApiStudent> {
+  const url = getBaseUrl().replace(/\/students\/?$/, "/students/me/");
+  const { data } = await axios.get(url);
+
+  if (!data || typeof data !== "object" || !("id" in data)) {
+    throw new Error("Student profile not found.");
+  }
+
+  return data as ApiStudent;
 }

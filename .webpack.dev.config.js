@@ -6,7 +6,7 @@ module.exports = createConfig('webpack-dev-server', {
     proxy: [
       {
         context: ['/student-analytics/api'],
-        target: 'https://mash.makersasylum.com',
+        target: 'https://mash-staging.makersasylum.com',
         changeOrigin: true,
         secure: true,
       },
