@@ -178,8 +178,8 @@ type FetchStudentsParams = {
   filters?: ApiFilters;
 };
 
- const getBaseUrl = () => `/student-analytics/api/students/`;
-//  const getBaseUrl = () => `https://mash-staging.makersasylum.com/student-analytics/api/students/`;
+const getBaseUrl = () => `/student-analytics/api/students/`;
+//  const getBaseUrl = () => `https://mash.makersasylum.com/student-analytics/api/students/`;
 
 const buildFilterParams = (filters: ApiFilters = {}) => {
   const params: Record<string, string | number | boolean> = {};
@@ -427,15 +427,15 @@ async function fetchAccessTokenApi(): Promise<string> {
 
   const body = new URLSearchParams({
     grant_type: "password",
-    client_id: process.env.MASH_CLIENT_ID ?? "",
-    client_secret: process.env.MASH_CLIENT_SECRET ?? "",
-    username: process.env.MASH_USERNAME ?? "",
-    password: process.env.MASH_PASSWORD ?? "",
+    username: "admin",
+    password: "yoloMASH2520#",
   });
 
   const { data } = await axios.post(OAUTH2_TOKEN_URL, body, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
+      Authorization:
+        "Basic WTdVQUt6UFlDdDNZYzd1RmxJQjMyNXl2Q1Z0NmFLMXk5RXA2UVVtRzpQVnpURlpTVVN6b1NWbE5QeXhFMG5Lb0xIOXFsRFFMRWtmcXBrVFFEQzhBdjJnSEZCanVON0FPbGl1a29oejZBYkJZMlFvWmpzSjNIazRURXN4RkZRdHlXbFlWWTQ3MDJ3WXVhT3ZFUHVqUnFsb2FiUGVyVElQYWZFNmZjSlhUQg==",
     },
   });
 
