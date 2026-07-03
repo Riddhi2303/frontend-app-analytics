@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { Spinner } from '@openedx/paragon';
 
-import { fetchStudentsAnalyticsApi } from '../data/api';
+import { fetchMyStudentProfileApi } from '../data/api';
 import type { ApiStudent } from '../data/analyticsData';
 import StudentDetailView from './StudentDetailView';
 
@@ -18,9 +18,9 @@ const StudentAnalyticsView = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await fetchStudentsAnalyticsApi({ pageSize: 1 });
+        const profile = await fetchMyStudentProfileApi();
         if (!cancelled) {
-          setStudent(response.results[0] ?? null);
+          setStudent(profile);
         }
       } catch (err) {
         if (!cancelled) {
