@@ -1,7 +1,8 @@
 import type { MouseEvent } from 'react';
 import { StudentRecord } from '../data/analyticsData';
-import CourseMetricCard from './CourseMetricCard';
 import SpinnerIcon from './SpinnerIcon';
+import StudentMetricsRowContent from './StudentMetricsRowContent';
+import { initialsFromName } from './studentMetricsShared';
 
 type AnalyticsTableProps = {
   students: StudentRecord[];
@@ -10,19 +11,6 @@ type AnalyticsTableProps = {
   selectedStudentId?: number | null;
   onStudentSelect?: (studentId: number, courseCode?: string) => void;
 };
-
-const initialsFromName = (name: string) => {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) { return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase(); }
-  return name.slice(0, 2).toUpperCase() || '?';
-};
-
-const COURSE_DOT_CLASS: Record<string, string> = {
-  CAD1: 'ongoing-dot--primary',
-  EMC1: 'ongoing-dot--secondary',
-};
-
-const dotClassForCourse = (code: string) => COURSE_DOT_CLASS[code.toUpperCase()] ?? 'ongoing-dot--tertiary';
 
 const totalColCount = (courseCodes: string[]) => 4 + courseCodes.length;
 
@@ -117,33 +105,12 @@ const AnalyticsTable = ({
                     </div>
                   </div>
                 </td>
-                <td className="ongoing-cell">
-                  {student.ongoingCourses.map((entry) => (
-                    <div key={entry.code} className="ongoing-entry">
-                      <span className={`ongoing-dot ${dotClassForCourse(entry.code)}`} aria-hidden="true" />
-                      <strong>{entry.code}</strong>
-                    </div>
-                  ))}
-                </td>
-                <td className="call-cell">
-                  {student.ongoingCourses.map((entry) => (
-                    <div key={entry.code} className="call-entry">{entry.lastCall}</div>
-                  ))}
-                </td>
-                <td className="call-cell">
-                  {student.ongoingCourses.map((entry) => (
-                    <div key={entry.code} className="call-entry">{entry.nextCall}</div>
-                  ))}
-                </td>
-                {courseCodes.map((code) => (
-                  <td key={code} className="metric-cell">
-                    <CourseMetricCard
-                      metric={student.courseMetrics[code] ?? null}
-                      showInfoTooltip
-                      onClick={onStudentSelect ? handleCourseActivate(code) : undefined}
-                    />
-                  </td>
-                ))}
+                <StudentMetricsRowContent
+                  student={student}
+                  courseCodes={courseCodes}
+                  showInfoTooltip
+                  onCourseClick={onStudentSelect ? handleCourseActivate : undefined}
+                />
               </tr>
             );
           })}

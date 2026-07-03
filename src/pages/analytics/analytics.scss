@@ -1477,136 +1477,167 @@ body {
 
   .student-detail-page-header {
     flex-shrink: 0;
-    padding: 16px 24px;
+    padding: 0;
     background: var(--student-card-bg);
     border-bottom: 1px solid var(--student-border);
     overflow-x: auto;
+
+    --mash-table-font: Lato, Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mash-table-header-font: "Titillium Web", Lato, Inter, system-ui, sans-serif;
+    --mash-name-col-width: 240px;
+    --mash-tundora: #231f20;
+    --mash-metric-green: #037e53;
+    --mash-metric-green-bg: #dbffef;
+    --mash-metric-blue: #2d69ae;
+    --mash-metric-blue-border: #87b1f0;
+    --mash-metric-muted: #898989;
+    --mash-call-text: #3f3f3f;
+    --mash-assign-red: #e30909;
   }
 
-  .student-overview-bar {
+  .student-overview-table {
+    min-width: max-content;
+    font-family: var(--mash-table-font);
+  }
+
+  .student-overview-head {
+    display: flex;
+    align-items: stretch;
+    background: #e0e0e0;
+    border-bottom: 1px solid #c9c9c9;
+    box-shadow: 0 2px 4px rgb(0 0 0 / 8%);
+  }
+
+  .student-overview-head-cell {
+    flex-shrink: 0;
+    padding: 4px 10px;
+    font-family: var(--mash-table-header-font);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--mash-tundora);
+    line-height: 1.2;
+    text-align: left;
+    border-right: 1px solid #d0d0d0;
+    min-height: 28px;
     display: flex;
     align-items: center;
-    gap: 0;
-    min-width: max-content;
-    font-family: var(--mash-table-font, Lato, Inter, system-ui, sans-serif);
-  }
 
-  .student-overview-identity {
-    flex: 0 0 var(--mash-name-col-width, 240px);
-    min-width: var(--mash-name-col-width, 240px);
-    padding-right: 12px;
-
-    h2 {
-      margin: 0;
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--student-text-primary);
-      line-height: 1.25;
+    &:last-child {
+      border-right: none;
     }
 
-    .student-overview-cohort {
-      margin: 4px 0 0;
-      font-size: 14px;
-      font-weight: 400;
-      color: var(--student-text-secondary);
-      line-height: 1.35;
+    &.col-name {
+      width: var(--mash-name-col-width);
+      min-width: var(--mash-name-col-width);
+    }
+
+    &.col-ongoing {
+      width: 119px;
+      min-width: 119px;
+    }
+
+    &.col-last-call {
+      width: 119px;
+      min-width: 119px;
+    }
+
+    &.col-next-call {
+      width: 101px;
+      min-width: 101px;
+    }
+
+    &.col-course {
+      width: 225px;
+      min-width: 225px;
+      justify-content: center;
+      text-align: center;
+    }
+  }
+
+  .student-overview-row {
+    display: flex;
+    align-items: center;
+    min-height: 63px;
+    background: #fff;
+
+    &.highlighted {
+      background: #dbffef;
+      box-shadow: inset 0 0 0 1px #037e53;
+      min-height: 67px;
+
+      .student-cell {
+        background: #dbffef;
+      }
+
+      .metric-card {
+        min-height: 56px;
+        height: 56px;
+      }
+    }
+
+    > .student-cell {
+      flex: 0 0 var(--mash-name-col-width);
+      width: var(--mash-name-col-width);
+      min-width: var(--mash-name-col-width);
+      padding: 10px 10px 10px 12px;
+      border-right: 1px solid #d0d0d0;
+      box-sizing: border-box;
+    }
+
+    > .ongoing-cell {
+      flex: 0 0 119px;
+      width: 119px;
+      min-width: 119px;
+      padding: 3px 8px;
+      box-sizing: border-box;
+    }
+
+    > .call-cell {
+      flex-shrink: 0;
+      padding: 3px 6px;
+      box-sizing: border-box;
+      text-align: center;
+
+      &:nth-of-type(3) {
+        width: 119px;
+        min-width: 119px;
+      }
+
+      &:nth-of-type(4) {
+        width: 101px;
+        min-width: 101px;
+      }
+    }
+
+    > .metric-cell {
+      flex: 0 0 225px;
+      width: 225px;
+      min-width: 225px;
+      padding: 3px 4px;
+      box-sizing: border-box;
+      overflow: hidden;
+      position: relative;
+      text-align: center;
+
+      &:hover,
+      &:has(.metric-info-wrap:hover),
+      &:has(.metric-info-wrap:focus-within) {
+        overflow: visible;
+        z-index: 20;
+      }
+
+      .metric-card {
+        margin: 0 auto;
+      }
     }
 
     .student-overview-dates {
       margin: 2px 0 0;
       font-size: 13px;
-      color: var(--student-text-muted);
+      font-weight: 400;
+      color: var(--student-text-muted, #888);
       line-height: 1.35;
     }
-  }
-
-  .student-overview-calls {
-    display: flex;
-    flex-shrink: 0;
-    align-items: stretch;
-    border-left: 1px solid #ebebeb;
-    border-right: 1px solid #ebebeb;
-  }
-
-  .student-overview-call-col {
-    flex: 0 0 119px;
-    min-width: 119px;
-    padding: 0 8px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 0;
-
-    &--center {
-      text-align: center;
-
-      .call-entry {
-        justify-content: center;
-      }
-    }
-
-    &:last-child {
-      flex-basis: 101px;
-      min-width: 101px;
-    }
-  }
-
-  .student-overview-call-label {
-    display: block;
-    margin-bottom: 4px;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--mash-tundora, #444);
-    text-transform: none;
-    line-height: 1.2;
-  }
-
-  .student-overview-metrics {
-    display: flex;
-    flex: 1;
-    align-items: center;
-    gap: 0;
-    min-width: 0;
-    padding-left: 4px;
-  }
-
-  .student-overview-metric-col {
-    flex: 0 0 225px;
-    min-width: 225px;
-    padding: 0 4px;
-    box-sizing: border-box;
-
-    .metric-card {
-      margin: 0 auto;
-      max-width: 220px;
-    }
-  }
-
-  .metric-card--labeled {
-    min-height: 68px;
-    height: 68px;
-    padding-top: 4px;
-  }
-
-  .metric-course-code {
-    font-size: 14px;
-    font-weight: 700;
-    line-height: 1.1;
-    margin-bottom: 2px;
-    color: var(--mash-tundora, #444);
-  }
-
-  .metric-course-code--success {
-    color: var(--mash-metric-green, #037e53);
-  }
-
-  .metric-course-code--accent {
-    color: var(--mash-tundora, #444);
-  }
-
-  .metric-course-code--neutral,
-  .metric-course-code--empty {
-    color: var(--mash-metric-muted, #888);
   }
 
   .student-detail-page-scroll {

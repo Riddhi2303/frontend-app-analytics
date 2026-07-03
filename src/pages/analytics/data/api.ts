@@ -178,8 +178,8 @@ type FetchStudentsParams = {
   filters?: ApiFilters;
 };
 
-// const getBaseUrl = () => `/student-analytics/api/students/`;
-const getBaseUrl = () => `https://mash.makersasylum.com/student-analytics/api/students/`;
+ const getBaseUrl = () => `/student-analytics/api/students/`;
+//  const getBaseUrl = () => `https://mash-staging.makersasylum.com/student-analytics/api/students/`;
 
 const buildFilterParams = (filters: ApiFilters = {}) => {
   const params: Record<string, string | number | boolean> = {};
@@ -408,14 +408,15 @@ export type MyRolesResponse = {
   is_staff: boolean;
   is_superuser: boolean;
   is_mentor: boolean;
+  is_student: boolean;
 };
 
 const MENTORING_MY_ROLES_URL = "/mentoring/api/v1/my-roles/";
 const OAUTH2_TOKEN_URL = "/oauth2/access_token";
 
-/** Mentor + staff/admin sees the full analytics dashboard. */
+/** Superuser or mentor sees the full mentor analytics dashboard. */
 export const isMentorAdminView = (roles: MyRolesResponse): boolean =>
-  Boolean(roles.is_mentor && (roles.is_staff || roles.is_superuser));
+  Boolean(roles.is_superuser || roles.is_mentor);
 
 let _cachedToken: { value: string; expiresAt: number } | null = null;
 
@@ -426,6 +427,8 @@ async function fetchAccessTokenApi(): Promise<string> {
 
   const body = new URLSearchParams({
     grant_type: "password",
+    client_id: process.env.MASH_CLIENT_ID ?? "",
+    client_secret: process.env.MASH_CLIENT_SECRET ?? "",
     username: process.env.MASH_USERNAME ?? "",
     password: process.env.MASH_PASSWORD ?? "",
   });
@@ -433,7 +436,6 @@ async function fetchAccessTokenApi(): Promise<string> {
   const { data } = await axios.post(OAUTH2_TOKEN_URL, body, {
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
-      Authorization: `Basic ${process.env.MASH_OAUTH_BASIC_AUTH}`,
     },
   });
 
@@ -456,6 +458,7 @@ export async function fetchMyRolesApi(): Promise<MyRolesResponse> {
     is_staff: Boolean(payload?.is_staff),
     is_superuser: Boolean(payload?.is_superuser),
     is_mentor: Boolean(payload?.is_mentor),
+    is_student: Boolean(payload?.is_student),
   };
 }
 

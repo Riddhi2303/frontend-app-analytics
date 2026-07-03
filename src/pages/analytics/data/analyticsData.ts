@@ -197,8 +197,27 @@ const MONTH_INDEX: Record<string, number> = {
 
 const DISPLAY_DATETIME_RE = /^(\d{1,2})\s+(\w{3})\s+(\d{4}),\s*(\d{1,2}):(\d{2})\s*(AM|PM)$/i;
 const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const IST_TIME_ZONE = 'Asia/Kolkata';
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
 
-/** Parse API date/time strings as local wall-clock time (not UTC-shifted). */
+/** Build a Date from IST wall-clock components (API human-readable strings are IST). */
+const dateFromIstWallClock = (
+  year: number,
+  month: number,
+  day: number,
+  hours: number,
+  minutes: number,
+) => new Date(Date.UTC(year, month, day, hours, minutes) - IST_OFFSET_MS);
+
+const dateFromIstDateOnly = (year: number, month: number, day: number) => (
+  dateFromIstWallClock(year, month - 1, day, 0, 0)
+);
+
+/**
+ * Parse API date/time strings.
+ * Human-readable values (e.g. "18 Jun 2026, 06:30 AM") are treated as IST wall-clock.
+ * ISO/UTC strings are parsed as absolute instants and displayed in IST.
+ */
 export const parseApiDateTime = (value: string | null | undefined): Date | null => {
   if (!value) {
     return null;
@@ -212,7 +231,7 @@ export const parseApiDateTime = (value: string | null | undefined): Date | null 
   const dateOnlyMatch = trimmed.match(DATE_ONLY_RE);
   if (dateOnlyMatch) {
     const [, year, month, day] = dateOnlyMatch;
-    return new Date(Number(year), Number(month) - 1, Number(day));
+    return dateFromIstDateOnly(Number(year), Number(month), Number(day));
   }
 
   const displayMatch = trimmed.match(DISPLAY_DATETIME_RE);
@@ -230,7 +249,7 @@ export const parseApiDateTime = (value: string | null | undefined): Date | null 
     if (ampm.toUpperCase() === 'AM' && hours === 12) {
       hours = 0;
     }
-    return new Date(Number(year), month, Number(day), hours, minutes);
+    return dateFromIstWallClock(Number(year), month, Number(day), hours, minutes);
   }
 
   const parsed = new Date(trimmed);
@@ -240,12 +259,14 @@ export const parseApiDateTime = (value: string | null | undefined): Date | null 
 const formatLocalDate = (date: Date) => date.toLocaleDateString('en-US', {
   month: 'short',
   day: 'numeric',
+  timeZone: IST_TIME_ZONE,
 });
 
 const formatLocalTime = (date: Date) => date.toLocaleTimeString('en-US', {
   hour: 'numeric',
   minute: '2-digit',
   hour12: true,
+  timeZone: IST_TIME_ZONE,
 });
 
 const formatCall = (value: string | null) => {
@@ -254,12 +275,13 @@ const formatCall = (value: string | null) => {
   if (!date) {
     return value;
   }
-  return date.toLocaleString(undefined, {
+  return date.toLocaleString('en-US', {
     day: '2-digit',
     month: 'short',
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
+    timeZone: IST_TIME_ZONE,
   });
 };
 

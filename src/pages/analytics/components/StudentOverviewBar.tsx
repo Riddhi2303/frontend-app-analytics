@@ -7,14 +7,8 @@ import {
   studentDisplayName,
 } from '../data/analyticsData';
 import type { ApiStudent } from '../data/analyticsData';
-import CourseMetricCard from './CourseMetricCard';
-
-const COURSE_DOT_CLASS: Record<string, string> = {
-  CAD1: 'ongoing-dot--primary',
-  EMC1: 'ongoing-dot--secondary',
-};
-
-const dotClassForCourse = (code: string) => COURSE_DOT_CLASS[code.toUpperCase()] ?? 'ongoing-dot--tertiary';
+import StudentMetricsRowContent from './StudentMetricsRowContent';
+import { initialsFromName } from './studentMetricsShared';
 
 type StudentOverviewBarProps = {
   student: ApiStudent;
@@ -27,48 +21,52 @@ const StudentOverviewBar = ({ student }: StudentOverviewBarProps) => {
     student.residency.start_date,
     student.residency.end_date,
   );
+  const hasResidency = studentRecord.residency === 'Assigned';
+  const isHighlighted = studentRecord.readiness === 'ready';
+
+  const rowClassName = [
+    'student-overview-row',
+    isHighlighted ? 'highlighted' : '',
+  ].filter(Boolean).join(' ');
 
   return (
-    <div className="student-overview-bar">
-      <div className="student-overview-identity">
-        <h2>{studentDisplayName(student)}</h2>
-        {student.residency.name && <p className="student-overview-cohort">{student.residency.name}</p>}
-        {residencyRange && <p className="student-overview-dates">{residencyRange}</p>}
-      </div>
-
-      <div className="student-overview-calls" aria-label="Call schedule">
-        <div className="student-overview-call-col">
-          <span className="student-overview-call-label">Ongoing</span>
-          {studentRecord.ongoingCourses.map((entry) => (
-            <div key={entry.code} className="ongoing-entry">
-              <span className={`ongoing-dot ${dotClassForCourse(entry.code)}`} aria-hidden="true" />
-              <strong>{entry.code}</strong>
-            </div>
-          ))}
-        </div>
-        <div className="student-overview-call-col student-overview-call-col--center">
-          <span className="student-overview-call-label">Last Call</span>
-          {studentRecord.ongoingCourses.map((entry) => (
-            <div key={entry.code} className="call-entry">{entry.lastCall}</div>
-          ))}
-        </div>
-        <div className="student-overview-call-col student-overview-call-col--center">
-          <span className="student-overview-call-label">Next Call</span>
-          {studentRecord.ongoingCourses.map((entry) => (
-            <div key={entry.code} className="call-entry">{entry.nextCall}</div>
-          ))}
-        </div>
-      </div>
-
-      <div className="student-overview-metrics" aria-label="Course progress">
+    <div className="student-overview-table">
+      <div className="student-overview-head" aria-hidden="true">
+        <div className="student-overview-head-cell col-name" />
+        <div className="student-overview-head-cell col-ongoing">Ongoing</div>
+        <div className="student-overview-head-cell col-last-call">Last Call</div>
+        <div className="student-overview-head-cell col-next-call">Next Call</div>
         {courseCodes.map((code) => (
-          <div key={code} className="student-overview-metric-col">
-            <CourseMetricCard
-              courseCode={code}
-              metric={studentRecord.courseMetrics[code] ?? null}
-            />
-          </div>
+          <div key={code} className="student-overview-head-cell col-course">{code}</div>
         ))}
+      </div>
+
+      <div className={rowClassName}>
+        <div className="student-cell">
+          <div className="student-cell-inner">
+            <span className="student-avatar" aria-hidden="true">
+              {initialsFromName(studentRecord.name)}
+            </span>
+            <div className="student-text">
+              <strong>{studentDisplayName(student)}</strong>
+              {hasResidency ? (
+                <div className="student-cohort">{student.residency.name}</div>
+              ) : (
+                <p className="assign-residency-link">Assign Residency</p>
+              )}
+              {residencyRange && (
+                <p className="student-overview-dates">{residencyRange}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <StudentMetricsRowContent
+          student={studentRecord}
+          courseCodes={courseCodes}
+          showInfoTooltip
+          cellElement="div"
+        />
       </div>
     </div>
   );
