@@ -178,8 +178,9 @@ type FetchStudentsParams = {
   filters?: ApiFilters;
 };
 
-// const getBaseUrl = () => `/student-analytics/api/students/`;
-const getBaseUrl = () => `https://mash.makersasylum.com/student-analytics/api/students/`;
+const MASH_API_ORIGIN = "https://mash.makersasylum.com";
+
+const getBaseUrl = () => `${MASH_API_ORIGIN}/student-analytics/api/students/`;
 const buildFilterParams = (filters: ApiFilters = {}) => {
   const params: Record<string, string | number | boolean> = {};
 
@@ -410,8 +411,8 @@ export type MyRolesResponse = {
   is_student: boolean;
 };
 
-const MENTORING_MY_ROLES_URL = "/mentoring/api/v1/my-roles/";
-const OAUTH2_TOKEN_URL = "/oauth2/access_token";
+const MENTORING_MY_ROLES_URL = `${MASH_API_ORIGIN}/mentoring/api/v1/my-roles/`;
+const OAUTH2_TOKEN_URL = `${MASH_API_ORIGIN}/oauth2/access_token`;
 
 /** Superuser or mentor sees the full mentor analytics dashboard. */
 export const isMentorAdminView = (roles: MyRolesResponse): boolean =>
