@@ -42,6 +42,7 @@ const StudentMetricsRowContent = ({
       <Cell key={code} className="metric-cell">
         <CourseMetricCard
           metric={student.courseMetrics[code] ?? null}
+          studentName={student.name}
           showInfoTooltip={showInfoTooltip}
           onClick={onCourseClick?.(code)}
         />
