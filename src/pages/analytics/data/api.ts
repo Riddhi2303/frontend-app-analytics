@@ -461,18 +461,3 @@ export async function fetchMyRolesApi(): Promise<MyRolesResponse> {
     is_student: Boolean(payload?.is_student),
   };
 }
-
-/**
- * Logged-in student's own analytics profile.
- * GET /student-analytics/api/students/me/
- */
-export async function fetchMyStudentProfileApi(): Promise<ApiStudent> {
-  const url = getBaseUrl().replace(/\/students\/?$/, "/students/me/");
-  const { data } = await axios.get(url);
-
-  if (!data || typeof data !== "object" || !("id" in data)) {
-    throw new Error("Student profile not found.");
-  }
-
-  return data as ApiStudent;
-}

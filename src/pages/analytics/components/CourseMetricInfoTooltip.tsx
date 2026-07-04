@@ -1,11 +1,18 @@
-import type { ReactNode } from 'react';
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type MouseEvent,
+  type ReactNode,
+} from 'react';
 
 import type { CourseMetric } from '../data/analyticsData';
 
 const PhoneIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
     <path
-      d="M11.8 10.1 10.4 11.5c-.3.3-.8.4-1.2.2-1.8-.8-3.9-2.9-4.7-4.7-.2-.4-.1-.9.2-1.2L6.1 4.4c.2-.2.2-.6 0-.9L4.1 1.3a.7.7 0 0 0-1 0L1.8 2.6c-.8.8-1 2-.5 3.1 1 2.3 2.7 4.8 5 7.1 2.3 2.3 4.8 4 7.1 5 .1.1.3.1.5.1.9 0 1.8-.3 2.5-1l1.3-1.3a.7.7 0 0 0 0-1l-2.2-2.2a.6.6 0 0 0-.9 0Z"
+      d="M11.8 10.1 10.4 11.5c-.3.3-.8.4-1.2.2-1.8-.8-3.9-2.9-4.7-4.7-.2-.4-.1-.9.2-1.2L6.1 4.4c-.2-.2.2-.6 0-.9L4.1 1.3a.7.7 0 0 0-1 0L1.8 2.6c-.8.8-1 2-.5 3.1 1 2.3 2.7 4.8 5 7.1 2.3 2.3 4.8 4 7.1 5 .1.1.3.1.5.1.9 0 1.8-.3 2.5-1l1.3-1.3a.7.7 0 0 0 0-1l-2.2-2.2a.6.6 0 0 0-.9 0Z"
       fill="currentColor"
     />
   </svg>
@@ -43,22 +50,33 @@ const MetricSummaryLine = ({ value, tone = 'green', children }: MetricSummaryLin
   </p>
 );
 
-type CourseMetricInfoTooltipProps = {
+const SummaryPersonLine = ({ label, name }: { label: string; name: string }) => (
+  <p className="metric-info-person-line">
+    <span className="metric-info-person-label">{label}:</span>
+    {' '}
+    <span className="metric-info-person-name">{name}</span>
+  </p>
+);
+
+type MetricInfoTooltipContentProps = {
   metric: CourseMetric;
+  studentName?: string;
 };
 
-const CourseMetricInfoTooltip = ({ metric }: CourseMetricInfoTooltipProps) => {
-  const mentorLabel = metric.mentor && metric.mentor !== '-' ? metric.mentor : 'No mentor assigned';
+const MetricInfoTooltipContent = ({ metric, studentName }: MetricInfoTooltipContentProps) => {
+  const mentorName = metric.mentor && metric.mentor !== '-' ? metric.mentor : 'No mentor assigned';
+  const learnerName = studentName?.trim() || '—';
   const showCalls = metric.gateTotal > 0 || metric.gateCompleted > 0 || metric.gateScheduled > 0;
   const showPractice = metric.oraTotal > 0;
   const showPoints = metric.oraTotal > 0 && metric.oraPointsTotal > 0;
 
   return (
-    <div className="metric-info-tooltip" role="tooltip">
+    <>
       <div className="metric-info-tooltip-section metric-info-tooltip-section--summary">
         <span className="metric-info-tooltip-label">Summary</span>
         <strong className="metric-info-tooltip-title">{metric.courseName}</strong>
-        <p className="metric-info-tooltip-subtitle">{mentorLabel}</p>
+        <SummaryPersonLine label="Learner" name={learnerName} />
+        <SummaryPersonLine label="Mentor" name={mentorName} />
       </div>
 
       {showCalls && (
@@ -126,7 +144,7 @@ const CourseMetricInfoTooltip = ({ metric }: CourseMetricInfoTooltipProps) => {
           </MetricSummaryLine>
         </div>
       )}
-    </div>
+    </>
   );
 };
 
@@ -142,24 +160,138 @@ const InfoIcon = () => (
   </svg>
 );
 
+const VIEWPORT_MARGIN = 8;
+const TOOLTIP_GAP = 8;
+
+const computeTooltipPosition = (
+  anchorRect: DOMRect,
+  tooltipWidth: number,
+  tooltipHeight: number,
+) => {
+  const viewportWidth = window.innerWidth;
+  const viewportHeight = window.innerHeight;
+
+  let left = anchorRect.right + TOOLTIP_GAP;
+  if (left + tooltipWidth > viewportWidth - VIEWPORT_MARGIN) {
+    left = anchorRect.left - tooltipWidth - TOOLTIP_GAP;
+  }
+  left = Math.max(VIEWPORT_MARGIN, Math.min(left, viewportWidth - tooltipWidth - VIEWPORT_MARGIN));
+
+  const spaceBelow = viewportHeight - anchorRect.bottom;
+  const centeredTop = anchorRect.top + (anchorRect.height - tooltipHeight) / 2;
+  const belowTop = anchorRect.bottom + TOOLTIP_GAP;
+  const aboveTop = anchorRect.top - tooltipHeight - TOOLTIP_GAP;
+
+  let top = centeredTop;
+  const fitsCentered = centeredTop + tooltipHeight <= viewportHeight - VIEWPORT_MARGIN
+    && centeredTop >= VIEWPORT_MARGIN;
+  const fitsBelow = belowTop + tooltipHeight <= viewportHeight - VIEWPORT_MARGIN;
+  const fitsAbove = aboveTop >= VIEWPORT_MARGIN;
+
+  if (!fitsCentered && spaceBelow < tooltipHeight + TOOLTIP_GAP && fitsAbove) {
+    top = aboveTop;
+  } else if (!fitsCentered && fitsBelow) {
+    top = belowTop;
+  } else if (!fitsCentered && fitsAbove) {
+    top = aboveTop;
+  }
+
+  top = Math.max(VIEWPORT_MARGIN, Math.min(top, viewportHeight - tooltipHeight - VIEWPORT_MARGIN));
+
+  return { top, left };
+};
+
 type CourseMetricInfoButtonProps = {
   metric: CourseMetric;
   courseLabel: string;
+  studentName?: string;
+  onTileClick?: (event: MouseEvent<HTMLElement>) => void;
 };
 
-export const CourseMetricInfoButton = ({ metric, courseLabel }: CourseMetricInfoButtonProps) => (
-  <div className="metric-info-wrap">
-    <button
-      type="button"
-      className="metric-info-btn"
-      aria-label={`Summary for ${courseLabel}`}
-      onMouseDown={(event) => event.stopPropagation()}
-      onClick={(event) => event.stopPropagation()}
+export const CourseMetricInfoButton = ({
+  metric,
+  courseLabel,
+  studentName,
+  onTileClick,
+}: CourseMetricInfoButtonProps) => {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const tooltipRef = useRef<HTMLDivElement>(null);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPlaced, setIsPlaced] = useState(false);
+  const [tooltipStyle, setTooltipStyle] = useState<{ top: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!isHovered) {
+      setIsPlaced(false);
+      setTooltipStyle(null);
+      return;
+    }
+
+    const wrap = wrapRef.current;
+    const tooltip = tooltipRef.current;
+    if (!wrap || !tooltip) {
+      return;
+    }
+
+    const anchorRect = wrap.getBoundingClientRect();
+    const { top, left } = computeTooltipPosition(
+      anchorRect,
+      tooltip.offsetWidth,
+      tooltip.offsetHeight,
+    );
+    setTooltipStyle({ top, left });
+    setIsPlaced(true);
+  }, [isHovered, metric, studentName]);
+
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+  }, []);
+
+  const handleClick = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+    setIsHovered(false);
+    onTileClick?.(event);
+  }, [onTileClick]);
+
+  const tooltipClassName = [
+    'metric-info-tooltip',
+    'metric-info-tooltip--fixed',
+    isHovered ? 'metric-info-tooltip--visible' : '',
+    isPlaced ? 'metric-info-tooltip--placed' : '',
+  ].filter(Boolean).join(' ');
+
+  return (
+    <div
+      ref={wrapRef}
+      className="metric-info-wrap"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
-      <InfoIcon />
-    </button>
-    <CourseMetricInfoTooltip metric={metric} />
-  </div>
-);
+      <button
+        type="button"
+        className="metric-info-btn"
+        tabIndex={-1}
+        aria-label={`Summary for ${courseLabel}`}
+        onClick={handleClick}
+      >
+        <InfoIcon />
+      </button>
+      <div
+        className={tooltipClassName}
+        ref={tooltipRef}
+        style={tooltipStyle ?? undefined}
+        role="tooltip"
+        aria-hidden={!isHovered}
+      >
+        <MetricInfoTooltipContent metric={metric} studentName={studentName} />
+      </div>
+    </div>
+  );
+};
+
+const CourseMetricInfoTooltip = MetricInfoTooltipContent;
 
 export default CourseMetricInfoTooltip;

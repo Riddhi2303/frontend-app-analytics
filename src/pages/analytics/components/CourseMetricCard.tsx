@@ -50,6 +50,7 @@ const inferTone = (metric: CourseMetric | null | undefined): MetricTone => {
 export type CourseMetricCardProps = {
   metric: CourseMetric | null | undefined;
   courseCode?: string;
+  studentName?: string;
   showInfoTooltip?: boolean;
   onClick?: (event: MouseEvent<HTMLElement>) => void;
   className?: string;
@@ -58,6 +59,7 @@ export type CourseMetricCardProps = {
 const CourseMetricCard = ({
   metric,
   courseCode,
+  studentName,
   showInfoTooltip = false,
   onClick,
   className = '',
@@ -73,9 +75,6 @@ const CourseMetricCard = ({
   ) : null;
 
   const handleActivate = (event: MouseEvent<HTMLElement>) => {
-    if ((event.target as HTMLElement).closest('.metric-info-wrap')) {
-      return;
-    }
     onClick?.(event);
   };
 
@@ -195,7 +194,12 @@ const CourseMetricCard = ({
       ].filter(Boolean).join(' ')}>
         {card}
         {hasInfoTooltip && (
-          <CourseMetricInfoButton metric={metric!} courseLabel={courseLabel} />
+          <CourseMetricInfoButton
+            metric={metric!}
+            courseLabel={courseLabel}
+            studentName={studentName}
+            onTileClick={onClick}
+          />
         )}
       </div>
     );

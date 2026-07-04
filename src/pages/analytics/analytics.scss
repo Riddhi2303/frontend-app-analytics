@@ -902,17 +902,13 @@ body {
     background: #dbffef;
   }
 
-  tbody tr:has(td.metric-cell:hover),
-  tbody tr:has(.metric-info-wrap:hover),
-  tbody tr:has(.metric-info-wrap:focus-within) {
+  tbody tr:has(td.metric-cell:hover) {
     position: relative;
     z-index: 12;
   }
 
   td.metric-cell {
-    &:hover,
-    &:has(.metric-info-wrap:hover),
-    &:has(.metric-info-wrap:focus-within) {
+    &:hover {
       overflow: visible;
       z-index: 20;
     }
@@ -1254,15 +1250,12 @@ body {
 }
 
 .metric-cell-interactive--with-info:hover .metric-info-btn,
-.metric-cell-interactive--with-info:focus-within .metric-info-btn,
-.metric-info-wrap:hover .metric-info-btn,
-.metric-info-wrap:focus-within .metric-info-btn {
+.metric-info-wrap:hover .metric-info-btn {
   opacity: 1;
   pointer-events: auto;
 }
 
-.metric-cell-interactive--with-info:hover .metric-card .metric-bottom,
-.metric-cell-interactive--with-info:focus-within .metric-card .metric-bottom {
+.metric-cell-interactive--with-info:hover .metric-card .metric-bottom {
   padding-right: 14px;
 }
 
@@ -1295,10 +1288,7 @@ body {
 }
 
 .metric-info-tooltip {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 100;
+  z-index: 1000;
   width: 290px;
   padding: 12px 14px;
   border: 1px solid #d8d8d8;
@@ -1310,14 +1300,20 @@ body {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
-  transition: opacity 0.15s ease, visibility 0.15s ease;
 }
 
-.metric-info-wrap:hover .metric-info-tooltip,
-.metric-info-wrap:focus-within .metric-info-tooltip {
-  opacity: 1;
+.metric-info-tooltip--fixed {
+  position: fixed;
+  top: 0;
+  left: 0;
+}
+
+.metric-info-tooltip--visible {
   visibility: visible;
-  pointer-events: auto;
+}
+
+.metric-info-tooltip--placed {
+  opacity: 1;
 }
 
 .metric-info-tooltip-section {
@@ -1353,6 +1349,27 @@ body {
   font-weight: 700;
   color: var(--mash-tundora);
   line-height: 1.35;
+  margin-bottom: 6px;
+}
+
+.metric-info-person-line {
+  margin: 0 0 4px;
+  font-size: 14px;
+  line-height: 1.35;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.metric-info-person-label {
+  color: var(--mash-metric-muted);
+  font-weight: 400;
+}
+
+.metric-info-person-name {
+  color: var(--mash-tundora);
+  font-weight: 400;
 }
 
 .metric-info-tooltip-subtitle {
@@ -1619,9 +1636,7 @@ body {
       position: relative;
       text-align: center;
 
-      &:hover,
-      &:has(.metric-info-wrap:hover),
-      &:has(.metric-info-wrap:focus-within) {
+      &:hover {
         overflow: visible;
         z-index: 20;
       }

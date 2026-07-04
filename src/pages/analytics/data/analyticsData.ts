@@ -464,8 +464,7 @@ export const sumPracticeAssignmentScores = (assignments: ApiPracticeAssignment[]
 
 export type CourseDrawerTabStatus = 'completed' | 'in-progress' | 'not-started';
 
-/** Drawer course tab color: green = completed, blue = in progress, black = not started. */
-export const getCourseDrawerTabStatus = (course: ApiCourse): CourseDrawerTabStatus => {
+const isCourseCompleted = (course: ApiCourse): boolean => {
   const ora = course.ora;
   const gateTotal = course.gate.total;
   const gateComplete = gateTotal > 0 && course.gate.completed >= gateTotal;
@@ -474,23 +473,50 @@ export const getCourseDrawerTabStatus = (course: ApiCourse): CourseDrawerTabStat
     && (ora?.passing_grade_percentage ?? 0) > 0
     && ((ora?.points_obtained ?? 0) / (ora?.points_total ?? 1)) >= (ora?.passing_grade_percentage ?? 0);
 
-  if (course.passed || (isOraless && gateComplete) || (!isOraless && oraPassingGrade)) {
-    return 'completed';
-  }
+  return Boolean(course.passed)
+    || (isOraless && gateComplete)
+    || (!isOraless && oraPassingGrade);
+};
 
-  const hasActivity = course.gate.completed > 0
+/** Gate/ORA/call activity — shared by drawer tabs and main-list Ongoing column. */
+export const hasCourseActivity = (course: ApiCourse): boolean => {
+  const ora = course.ora;
+  return course.gate.completed > 0
     || course.gate.scheduled > 0
     || (ora?.submitted ?? 0) > 0
     || (ora?.graded ?? 0) > 0
     || Boolean(course.last_gate_call)
     || Boolean(course.upcoming_gate_call);
+};
 
-  if (hasActivity) {
+/** Drawer course tab color: green = completed, blue = in progress, black = not started. */
+export const getCourseDrawerTabStatus = (course: ApiCourse): CourseDrawerTabStatus => {
+  if (isCourseCompleted(course)) {
+    return 'completed';
+  }
+
+  if (hasCourseActivity(course)) {
     return 'in-progress';
   }
 
   return 'not-started';
 };
+
+/** Same condition as drawer blue (in-progress) tabs. */
+export const isCourseOngoing = (course: ApiCourse): boolean => (
+  getCourseDrawerTabStatus(course) === 'in-progress'
+);
+
+/** Ongoing column: primary enrollment per course code, in-progress only. */
+export const getOngoingCourses = (courses: ApiCourse[]): OngoingCourse[] => (
+  pickPrimaryCoursesForDrawer(courses)
+    .filter(isCourseOngoing)
+    .map((course) => ({
+      code: course.course_code,
+      lastCall: formatCall(course.last_gate_call),
+      nextCall: formatCall(course.upcoming_gate_call),
+    }))
+);
 
 export const formatGateCallTimeRange = (
   start: string | null | undefined,
@@ -526,16 +552,7 @@ export const mapStudentsFromApi = (results: ApiStudent[]): StudentRecord[] => re
       ? 'Maker Skills'
       : 'IS Fellowship';
 
-  const activeCourses = student.courses.filter((c) => (
-    c.gate.completed < c.gate.total
-    && (c.gate.completed > 0 || Boolean(c.last_gate_call) || Boolean(c.upcoming_gate_call))
-  ));
-  const ongoingSource = activeCourses.length > 0 ? activeCourses : student.courses.slice(0, 1);
-  const ongoingCourses: OngoingCourse[] = ongoingSource.map((c) => ({
-    code: c.course_code,
-    lastCall: formatCall(c.last_gate_call),
-    nextCall: formatCall(c.upcoming_gate_call),
-  }));
+  const ongoingCourses = getOngoingCourses(student.courses);
 
   return {
     id: student.id,
