@@ -729,6 +729,86 @@ body {
   --mash-metric-muted: #898989;
   --mash-call-text: #3f3f3f;
   --mash-assign-red: #e30909;
+  --mash-name-col-width: 240px;
+  --mash-col-ongoing-width: 119px;
+  --mash-col-last-call-width: 129px;
+  --mash-col-next-call-width: 129px;
+  --mash-col-course-width: 225px;
+}
+
+/* Shared column widths — mentor table colgroup/cells + student overview */
+.col-name {
+  width: var(--mash-name-col-width, 240px);
+  min-width: var(--mash-name-col-width, 240px);
+  max-width: var(--mash-name-col-width, 240px);
+}
+
+.col-ongoing {
+  width: var(--mash-col-ongoing-width, 119px);
+  min-width: var(--mash-col-ongoing-width, 119px);
+  max-width: var(--mash-col-ongoing-width, 119px);
+}
+
+.col-last-call {
+  width: var(--mash-col-last-call-width, 140px);
+  min-width: var(--mash-col-last-call-width, 140px);
+  max-width: var(--mash-col-last-call-width, 140px);
+}
+
+.col-next-call {
+  width: var(--mash-col-next-call-width, 130px);
+  min-width: var(--mash-col-next-call-width, 130px);
+  max-width: var(--mash-col-next-call-width, 130px);
+}
+
+.col-course {
+  width: var(--mash-col-course-width, 225px);
+  min-width: var(--mash-col-course-width, 225px);
+  max-width: var(--mash-col-course-width, 225px);
+}
+
+.student-overview-head-cell {
+  &.col-name {
+    flex: 0 0 var(--mash-name-col-width, 240px);
+  }
+
+  &.col-ongoing {
+    flex: 0 0 var(--mash-col-ongoing-width, 119px);
+  }
+
+  &.col-last-call {
+    flex: 0 0 var(--mash-col-last-call-width, 140px);
+  }
+
+  &.col-next-call {
+    flex: 0 0 var(--mash-col-next-call-width, 130px);
+  }
+
+  &.col-course {
+    flex: 0 0 var(--mash-col-course-width, 225px);
+  }
+}
+
+.student-overview-row {
+  > .col-name {
+    flex: 0 0 var(--mash-name-col-width, 240px);
+  }
+
+  > .col-ongoing {
+    flex: 0 0 var(--mash-col-ongoing-width, 119px);
+  }
+
+  > .col-last-call {
+    flex: 0 0 var(--mash-col-last-call-width, 140px);
+  }
+
+  > .col-next-call {
+    flex: 0 0 var(--mash-col-next-call-width, 130px);
+  }
+
+  > .col-course {
+    flex: 0 0 var(--mash-col-course-width, 225px);
+  }
 }
 
 /* Table layout from Figma MASH-UI node 24:6972 (Rectangle 703 + column guides) */
@@ -739,28 +819,16 @@ body {
   table-layout: fixed;
   font-family: var(--mash-table-font);
 
-  --mash-name-col-width: 240px;
   /* LVL row: 26px cell + 3px orange top border */
   --mash-thead-level-height: 29px;
 
-  .col-name {
-    width: var(--mash-name-col-width);
+  thead tr.thead-labels th.col-last-call,
+  thead tr.thead-labels th.col-next-call {
+    text-align: center;
   }
 
-  .col-ongoing {
-    width: 119px;
-  }
-
-  .col-last-call {
-    width: 119px;
-  }
-
-  .col-next-call {
-    width: 101px;
-  }
-
-  .col-course {
-    width: 225px;
+  thead tr.thead-labels th.col-course {
+    text-align: center;
   }
 
   th,
@@ -908,7 +976,9 @@ body {
   }
 
   td.metric-cell {
-    &:hover {
+    &:hover,
+    &:has(.metric-info-wrap:hover),
+    &:has(.metric-info-wrap:focus-within) {
       overflow: visible;
       z-index: 20;
     }
@@ -1065,6 +1135,7 @@ body {
 }
 
 .metric-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -1078,6 +1149,35 @@ body {
   max-width: 220px;
   box-sizing: border-box;
   overflow: hidden;
+}
+
+.metric-bottom-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  margin-top: 2px;
+
+  .metric-bottom {
+    margin-top: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    text-align: left;
+  }
+
+  .metric-info-wrap {
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+}
+
+.metric-bottom-row--icon-only {
+  justify-content: flex-end;
+  min-height: 17px;
 }
 
 .metric-card.success {
@@ -1247,6 +1347,9 @@ body {
 .metric-cell-interactive {
   position: relative;
   width: 100%;
+  max-width: 220px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .metric-cell-interactive--with-info:hover .metric-info-btn,
@@ -1255,15 +1358,12 @@ body {
   pointer-events: auto;
 }
 
-.metric-cell-interactive--with-info:hover .metric-card .metric-bottom {
-  padding-right: 14px;
-}
-
 .metric-info-wrap {
-  position: absolute;
-  right: 8px;
-  bottom: 10px;
-  z-index: 5;
+  position: static;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  z-index: 2;
 }
 
 .metric-info-btn {
@@ -1502,6 +1602,10 @@ body {
     --mash-table-font: Lato, Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     --mash-table-header-font: "Titillium Web", Lato, Inter, system-ui, sans-serif;
     --mash-name-col-width: 240px;
+    --mash-col-ongoing-width: 119px;
+    --mash-col-last-call-width: 140px;
+    --mash-col-next-call-width: 130px;
+    --mash-col-course-width: 225px;
     --mash-tundora: #231f20;
     --mash-metric-green: #037e53;
     --mash-metric-green-bg: #dbffef;
@@ -1543,29 +1647,13 @@ body {
       border-right: none;
     }
 
-    &.col-name {
-      width: var(--mash-name-col-width);
-      min-width: var(--mash-name-col-width);
-    }
-
-    &.col-ongoing {
-      width: 119px;
-      min-width: 119px;
-    }
-
-    &.col-last-call {
-      width: 119px;
-      min-width: 119px;
-    }
-
-    &.col-next-call {
-      width: 101px;
-      min-width: 101px;
-    }
-
     &.col-course {
-      width: 225px;
-      min-width: 225px;
+      justify-content: center;
+      text-align: center;
+    }
+
+    &.col-last-call,
+    &.col-next-call {
       justify-content: center;
       text-align: center;
     }
@@ -1592,19 +1680,13 @@ body {
       }
     }
 
-    > .student-cell {
-      flex: 0 0 var(--mash-name-col-width);
-      width: var(--mash-name-col-width);
-      min-width: var(--mash-name-col-width);
+    > .student-cell.col-name {
       padding: 10px 10px 10px 12px;
       border-right: 1px solid #d0d0d0;
       box-sizing: border-box;
     }
 
-    > .ongoing-cell {
-      flex: 0 0 119px;
-      width: 119px;
-      min-width: 119px;
+    > .ongoing-cell.col-ongoing {
       padding: 3px 8px;
       box-sizing: border-box;
     }
@@ -1614,29 +1696,18 @@ body {
       padding: 3px 6px;
       box-sizing: border-box;
       text-align: center;
-
-      &:nth-of-type(3) {
-        width: 119px;
-        min-width: 119px;
-      }
-
-      &:nth-of-type(4) {
-        width: 101px;
-        min-width: 101px;
-      }
     }
 
-    > .metric-cell {
-      flex: 0 0 225px;
-      width: 225px;
-      min-width: 225px;
+    > .metric-cell.col-course {
       padding: 3px 4px;
       box-sizing: border-box;
       overflow: hidden;
       position: relative;
       text-align: center;
 
-      &:hover {
+      &:hover,
+      &:has(.metric-info-wrap:hover),
+      &:has(.metric-info-wrap:focus-within) {
         overflow: visible;
         z-index: 20;
       }

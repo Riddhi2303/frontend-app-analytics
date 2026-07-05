@@ -42,7 +42,7 @@ const StudentOverviewBar = ({ student }: StudentOverviewBarProps) => {
       </div>
 
       <div className={rowClassName}>
-        <div className="student-cell">
+        <div className="student-cell col-name">
           <div className="student-cell-inner">
             <span className="student-avatar" aria-hidden="true">
               {initialsFromName(studentRecord.name)}
@@ -52,7 +52,7 @@ const StudentOverviewBar = ({ student }: StudentOverviewBarProps) => {
               {hasResidency ? (
                 <div className="student-cohort">{student.residency.name}</div>
               ) : (
-                <p className="assign-residency-link">Assign Residency</p>
+                <p className="assign-residency-link" />
               )}
               {residencyRange && (
                 <p className="student-overview-dates">{residencyRange}</p>

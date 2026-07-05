@@ -178,7 +178,8 @@ type FetchStudentsParams = {
   filters?: ApiFilters;
 };
 
-const MASH_API_ORIGIN = "https://mash.makersasylum.com";
+/** Empty in dev so webpack-dev-server proxy handles CORS; absolute in production. */
+const MASH_API_ORIGIN = 'https://mash.makersasylum.com';
 
 const getBaseUrl = () => `${MASH_API_ORIGIN}/student-analytics/api/students/`;
 const buildFilterParams = (filters: ApiFilters = {}) => {
@@ -414,9 +415,13 @@ export type MyRolesResponse = {
 const MENTORING_MY_ROLES_URL = `${MASH_API_ORIGIN}/mentoring/api/v1/my-roles/`;
 const OAUTH2_TOKEN_URL = `${MASH_API_ORIGIN}/oauth2/access_token`;
 
-/** Superuser or mentor sees the full mentor analytics dashboard. */
+/** Superuser or mentor sees the full mentor analytics dashboard; everyone else sees their own student record. */
 export const isMentorAdminView = (roles: MyRolesResponse): boolean =>
   Boolean(roles.is_superuser || roles.is_mentor);
+
+/** Only superusers may assign residency from the mentor roster. */
+export const canAssignResidency = (roles: MyRolesResponse): boolean =>
+  roles.is_superuser;
 
 let _cachedToken: { value: string; expiresAt: number } | null = null;
 
@@ -427,8 +432,8 @@ async function fetchAccessTokenApi(): Promise<string> {
 
   const body = new URLSearchParams({
     grant_type: "password",
-    username: "admin",
-    password: "yoloMASH2520#",
+    username: "Archit",
+    password: "system123#",
   });
 
   const { data } = await axios.post(OAUTH2_TOKEN_URL, body, {

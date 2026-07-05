@@ -9,9 +9,11 @@ import type { AppDispatch, RootState } from '../../store';
 import {
   applyReadinessApiFilter,
   buildSidebarApiFilters,
+  canAssignResidency,
   DEFAULT_SIDEBAR_FILTER_KEY,
   hasSidebarApiFilters,
   serializeApiFilters,
+  type MyRolesResponse,
   type ReadinessFilter,
 } from './data/api';
 
@@ -57,7 +59,11 @@ type AppContextShape = {
   config: Record<string, unknown>;
 };
 
-const MentorAnalyticsDashboard = () => {
+type MentorAnalyticsDashboardProps = {
+  roles: MyRolesResponse | null;
+};
+
+const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   const { authenticatedUser } = useContext(AppContext) as AppContextShape;
   const dispatch = useDispatch<AppDispatch>();
 
@@ -382,6 +388,8 @@ const MentorAnalyticsDashboard = () => {
     sidebarFilters,
   ]);
 
+  const showAssignResidency = roles ? canAssignResidency(roles) : false;
+
   return (
     <main className="analytics-page">
       {/* <AnalyticsTopNav /> */}
@@ -431,6 +439,7 @@ const MentorAnalyticsDashboard = () => {
               courseCodes={courseCodes}
               loading={loading}
               selectedStudentId={selectedStudentId}
+              canAssignResidency={showAssignResidency}
               onStudentSelect={(studentId, courseCode) => {
                 if (selectedStudentId === studentId && !courseCode) {
                   setSelectedStudentId(null);
