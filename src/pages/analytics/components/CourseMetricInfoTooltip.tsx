@@ -6,6 +6,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react';
+import { createPortal } from 'react-dom';
 
 import type { CourseMetric } from '../data/analyticsData';
 
@@ -279,15 +280,18 @@ export const CourseMetricInfoButton = ({
       >
         <InfoIcon />
       </button>
-      <div
-        className={tooltipClassName}
-        ref={tooltipRef}
-        style={tooltipStyle ?? undefined}
-        role="tooltip"
-        aria-hidden={!isHovered}
-      >
-        <MetricInfoTooltipContent metric={metric} studentName={studentName} />
-      </div>
+      {createPortal(
+        <div
+          className={tooltipClassName}
+          ref={tooltipRef}
+          style={tooltipStyle ?? undefined}
+          role="tooltip"
+          aria-hidden={!isHovered}
+        >
+          <MetricInfoTooltipContent metric={metric} studentName={studentName} />
+        </div>,
+        document.body,
+      )}
     </div>
   );
 };

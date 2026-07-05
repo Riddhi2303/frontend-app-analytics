@@ -9,6 +9,7 @@ type AnalyticsTableProps = {
   courseCodes: string[];
   loading?: boolean;
   selectedStudentId?: number | null;
+  canAssignResidency?: boolean;
   onStudentSelect?: (studentId: number, courseCode?: string) => void;
 };
 
@@ -19,6 +20,7 @@ const AnalyticsTable = ({
   courseCodes,
   loading = false,
   selectedStudentId = null,
+  canAssignResidency = false,
   onStudentSelect,
 }: AnalyticsTableProps) => (
   <div className="analytics-table-wrap">
@@ -42,12 +44,12 @@ const AnalyticsTable = ({
             )}
           </tr>
           <tr className="thead-labels">
-            <th className="col-sticky">Name</th>
-            <th>Ongoing</th>
-            <th>Last Call</th>
-            <th>Next Call</th>
+            <th className="col-sticky col-name">Name</th>
+            <th className="col-ongoing">Ongoing</th>
+            <th className="col-last-call">Last Call</th>
+            <th className="col-next-call">Next Call</th>
             {courseCodes.map((code) => (
-              <th key={code}>{code}</th>
+              <th key={code} className="col-course">{code}</th>
             ))}
           </tr>
         </thead>
@@ -90,7 +92,7 @@ const AnalyticsTable = ({
                 tabIndex={onStudentSelect ? 0 : undefined}
                 aria-selected={onStudentSelect ? isSelected : undefined}
               >
-                <td className="student-cell">
+                <td className="student-cell col-name">
                   <div className="student-cell-inner">
                     <span className="student-avatar" aria-hidden="true">
                       {initialsFromName(student.name)}
@@ -99,9 +101,9 @@ const AnalyticsTable = ({
                       <strong>{student.name}</strong>
                       {hasResidency ? (
                         <div className="student-cohort">{student.cohort}</div>
-                      ) : (
+                      ) : canAssignResidency ? (
                         <p className="assign-residency-link">Assign Residency</p>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 </td>

@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent } from 'react';
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 
 import type { CourseMetric } from '../data/analyticsData';
 import { CourseMetricInfoButton } from './CourseMetricInfoTooltip';
@@ -74,6 +74,24 @@ const CourseMetricCard = ({
     <div className={`metric-course-code metric-course-code--${tone}`}>{courseCode}</div>
   ) : null;
 
+  const infoButton = hasInfoTooltip ? (
+    <CourseMetricInfoButton
+      metric={metric!}
+      courseLabel={courseLabel}
+      studentName={studentName}
+      onTileClick={onClick}
+    />
+  ) : null;
+
+  const withInfoClass = hasInfoTooltip ? 'metric-card--has-info' : '';
+
+  const renderMentorRow = (label: ReactNode, className = 'metric-bottom') => (
+    <div className="metric-bottom-row">
+      <div className={className}>{label}</div>
+      {infoButton}
+    </div>
+  );
+
   const handleActivate = (event: MouseEvent<HTMLElement>) => {
     onClick?.(event);
   };
@@ -106,12 +124,16 @@ const CourseMetricCard = ({
   } else if (tone === 'neutral') {
     const m = metric!;
     card = (
-      <div className={`metric-card neutral ${cardClassName}`.trim()} {...interactiveProps}>
+      <div className={`metric-card neutral ${withInfoClass} ${cardClassName}`.trim()} {...interactiveProps}>
         {courseCodeLabel}
         <div className="metric-bottom metric-bottom--status">Not Started</div>
-        {m.mentor && m.mentor !== '-' && (
-          <div className="metric-bottom">{m.mentor}</div>
-        )}
+        {m.mentor && m.mentor !== '-'
+          ? renderMentorRow(m.mentor)
+          : hasInfoTooltip && (
+            <div className="metric-bottom-row metric-bottom-row--icon-only">
+              {infoButton}
+            </div>
+          )}
       </div>
     );
   } else {
@@ -119,7 +141,7 @@ const CourseMetricCard = ({
     const m = metric!;
 
     card = (
-      <div className={`metric-card ${tone} ${cardClassName}`.trim()} {...interactiveProps}>
+      <div className={`metric-card ${tone} ${withInfoClass} ${cardClassName}`.trim()} {...interactiveProps}>
         {courseCodeLabel}
         <div className="metric-top">
           <span className="metric-pill">
@@ -165,11 +187,9 @@ const CourseMetricCard = ({
           )}
         </div>
 
-        {m.mentor && m.mentor !== '-' ? (
-          <div className="metric-bottom">{m.mentor}</div>
-        ) : (
-          <div className="metric-bottom metric-bottom--muted">No Mentor</div>
-        )}
+        {m.mentor && m.mentor !== '-'
+          ? renderMentorRow(m.mentor)
+          : renderMentorRow('No Mentor', 'metric-bottom metric-bottom--muted')}
       </div>
     );
   }
@@ -193,14 +213,6 @@ const CourseMetricCard = ({
         hasInfoTooltip ? 'metric-cell-interactive--with-info' : '',
       ].filter(Boolean).join(' ')}>
         {card}
-        {hasInfoTooltip && (
-          <CourseMetricInfoButton
-            metric={metric!}
-            courseLabel={courseLabel}
-            studentName={studentName}
-            onTileClick={onClick}
-          />
-        )}
       </div>
     );
   }

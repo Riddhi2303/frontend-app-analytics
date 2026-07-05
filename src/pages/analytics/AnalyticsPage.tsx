@@ -45,11 +45,10 @@ const AnalyticsPage = () => {
   }
 
   if (roles && isMentorAdminView(roles)) {
-    return <MentorAnalyticsDashboard />;
+    return <MentorAnalyticsDashboard roles={roles} />;
   }
-else {
-    return <StudentAnalyticsView />;
-}
+
+  return <StudentAnalyticsView />;
 };
 
 export default AnalyticsPage;
