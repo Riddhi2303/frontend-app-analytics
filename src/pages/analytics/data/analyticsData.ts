@@ -38,11 +38,19 @@ export type FilterRecord = {
   accent?: 'yellow' | 'red';
 };
 
+export type ApiResidencySeason = 'summer' | 'winter' | string;
+
 export type ApiResidency = {
   id: number;
   name: string;
   start_date: string;
   end_date: string;
+  season?: ApiResidencySeason | null;
+};
+
+export type ApiResidenciesResponse = {
+  results: ApiResidency[];
+  available_years?: number[];
 };
 
 export type CohortRecord = {
@@ -52,6 +60,89 @@ export type CohortRecord = {
   total: number;
   ready: number;
   checked: boolean;
+};
+
+/** Hard-coded IS Year options (sidebar). */
+export const IS_YEAR_OPTIONS = ['2026', '2027', 'not-assigned'] as const;
+export type IsYearOption = (typeof IS_YEAR_OPTIONS)[number];
+
+export const IS_SEASON_OPTIONS = ['summer', 'winter', 'not-assigned'] as const;
+export type IsSeasonOption = (typeof IS_SEASON_OPTIONS)[number];
+
+export const DEFAULT_IS_YEAR: IsYearOption = '2026';
+export const DEFAULT_IS_SEASON: IsSeasonOption = 'winter';
+
+export const isYearActiveForSeason = (year: IsYearOption | null): boolean => (
+  year === '2026' || year === '2027'
+);
+
+export const isSeasonActiveForCohort = (season: IsSeasonOption | null): boolean => (
+  season === 'summer' || season === 'winter'
+);
+
+/** Year from residency name (`2026 Summer Cohort 3`) or start_date. */
+export const residencyYear = (residency: ApiResidency): string | null => {
+  const fromName = residency.name.match(/\b(20\d{2})\b/);
+  if (fromName) {
+    return fromName[1];
+  }
+  const start = parseApiDateTime(residency.start_date);
+  if (start) {
+    return String(start.getFullYear());
+  }
+  return null;
+};
+
+export const residencySeason = (residency: ApiResidency): 'summer' | 'winter' | null => {
+  const raw = (residency.season ?? '').toString().trim().toLowerCase();
+  if (raw === 'summer' || raw === 'winter') {
+    return raw;
+  }
+  const fromName = residency.name.toLowerCase();
+  if (fromName.includes('summer')) {
+    return 'summer';
+  }
+  if (fromName.includes('winter') || fromName.includes('dussehra')) {
+    return 'winter';
+  }
+  return null;
+};
+
+/** e.g. `Cohort 3 : 20 Jun - 26 May` */
+export const formatCohortSidebarLabel = (residency: ApiResidency): string => {
+  const cohortMatch = residency.name.match(/Cohort\s+(\d+)/i);
+  const title = cohortMatch
+    ? `Cohort ${cohortMatch[1]}`
+    : residency.name.replace(/^\d{4}\s+(Summer|Winter)\s+/i, '').trim() || residency.name;
+
+  const start = parseApiDateTime(residency.start_date);
+  const end = parseApiDateTime(residency.end_date);
+  if (!start || !end) {
+    return title;
+  }
+
+  const fmt = (date: Date) => date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+  });
+
+  return `${title} : ${fmt(start)} - ${fmt(end)}`;
+};
+
+export const filterResidenciesByYearSeason = (
+  residencies: ApiResidency[],
+  year: IsYearOption | null,
+  season: IsSeasonOption | null,
+): ApiResidency[] => {
+  if (!isYearActiveForSeason(year) || !isSeasonActiveForCohort(season)) {
+    return [];
+  }
+
+  return residencies.filter((residency) => {
+    const y = residencyYear(residency);
+    const s = residencySeason(residency);
+    return y === year && s === season;
+  });
 };
 
 export type ApiOra = {
@@ -591,13 +682,52 @@ const formatResidencySchedule = (startDate: string | null | undefined, endDate: 
   return range ?? '-';
 };
 
+const lookupResidencyCount = (
+  map: Record<string, number>,
+  residency: ApiResidency,
+): number => (
+  map[residency.name]
+  ?? map[String(residency.id)]
+  ?? 0
+);
+
+/** Sum student counts for residencies matching a year (any season). */
+export const sumResidencyCountsForYear = (
+  residencies: ApiResidency[],
+  year: IsYearOption,
+  counts: ApiStudentAnalyticsResponse['counts'] | null,
+): number => {
+  const perResidency = counts?.per_residency ?? {};
+  return residencies
+    .filter((residency) => residencyYear(residency) === year)
+    .reduce((sum, residency) => sum + lookupResidencyCount(perResidency, residency), 0);
+};
+
+/** Sum student counts for residencies matching year + season. */
+export const sumResidencyCountsForSeason = (
+  residencies: ApiResidency[],
+  year: IsYearOption,
+  season: Exclude<IsSeasonOption, 'not-assigned'>,
+  counts: ApiStudentAnalyticsResponse['counts'] | null,
+): number => {
+  const perResidency = counts?.per_residency ?? {};
+  return filterResidenciesByYearSeason(residencies, year, season)
+    .reduce((sum, residency) => sum + lookupResidencyCount(perResidency, residency), 0);
+};
+
 /** Cohort sidebar from residencies API — visible as soon as residencies load; counts from facet API. */
 export const buildCohortFiltersFromResidencies = (
   residencies: ApiResidency[],
   counts: ApiStudentAnalyticsResponse['counts'] | null,
   results: ApiStudent[] = [],
+  year: IsYearOption | null = null,
+  season: IsSeasonOption | null = null,
 ): CohortRecord[] => {
-  if (residencies.length === 0) {
+  const scoped = (year && season)
+    ? filterResidenciesByYearSeason(residencies, year, season)
+    : residencies;
+
+  if (scoped.length === 0) {
     return [];
   }
 
@@ -606,18 +736,12 @@ export const buildCohortFiltersFromResidencies = (
     results.length > 0 ? countReadyStudentsByResidency(results) : {}
   );
 
-  const lookupCount = (map: Record<string, number>, residency: ApiResidency) => (
-    map[residency.name]
-    ?? map[String(residency.id)]
-    ?? 0
-  );
-
-  return residencies.map((residency) => ({
+  return scoped.map((residency) => ({
     id: residency.id,
-    label: residency.name,
+    label: formatCohortSidebarLabel(residency),
     schedule: formatResidencySchedule(residency.start_date, residency.end_date),
-    total: lookupCount(perResidency, residency),
-    ready: lookupCount(readyByResidency, residency),
+    total: lookupResidencyCount(perResidency, residency),
+    ready: lookupResidencyCount(readyByResidency, residency),
     checked: false,
   }));
 };

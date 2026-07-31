@@ -5,7 +5,6 @@ import type {
   ApiGateCallsResponse,
   ApiOraDetailsResponse,
   ApiResidency,
-  ApiStudent,
   ApiStudentAnalyticsResponse,
 } from "./analyticsData";
 
@@ -15,6 +14,10 @@ export type ApiFilters = {
   is_maker_skill?: boolean;
   residency_assigned?: boolean;
   residency?: number;
+  /** Multiple residencies for year+season (no specific cohort). Sent as residency_ids=[1,2]. */
+  residency_ids?: number[];
+  year?: number;
+  season?: 'summer' | 'winter';
   is_residence_ready?: boolean;
   inactive_for_two_weeks?: boolean;
   search?: string;
@@ -26,18 +29,30 @@ export const SIDEBAR_FILTER_KEY = {
   student: (label: string) => `student:${label}`,
   residency: (label: string) => `residency:${label}`,
   cohort: (label: string) => `cohort:${label}`,
+  cohortId: (id: number) => `cohort-id:${id}`,
 };
 
 export const DEFAULT_SIDEBAR_FILTER_KEY =
   SIDEBAR_FILTER_KEY.student("All Students");
 
-/** True when a left-sidebar option other than "All Students" is active. */
+/** True when any left-sidebar API constraint is active. */
 export const hasSidebarApiFilters = (filters: ApiFilters): boolean =>
   Object.keys(filters).length > 0;
 
+export type SidebarEnrollmentKey = string | null;
+
+export type SidebarIsSelection = {
+  year: import('./analyticsData').IsYearOption | null;
+  season: import('./analyticsData').IsSeasonOption | null;
+  /** `null` = no selection; `'not-assigned'` = Not Assigned; number = residency id */
+  cohort: number | 'not-assigned' | null;
+};
+
 export type SidebarFilterSelection = {
-  selectedKey: string;
-  cohortIdsByLabel: Map<string, number[]>;
+  /** Enrollment Type radio — mutually exclusive with IS year/season/cohort. */
+  enrollmentKey: SidebarEnrollmentKey;
+  isSelection: SidebarIsSelection;
+  matchingResidencyIds: number[];
 };
 
 /** Normalize cohort/residency ids: positive integers, unique, sorted. */
@@ -60,14 +75,15 @@ export const normalizeResidencyIds = (input: unknown): number[] | undefined => {
 };
 
 export const buildSidebarApiFilters = ({
-  selectedKey,
-  cohortIdsByLabel,
+  enrollmentKey,
+  isSelection,
+  matchingResidencyIds,
 }: SidebarFilterSelection): ApiFilters => {
   const filters: ApiFilters = {};
 
-  if (selectedKey.startsWith("student:")) {
-    const label = selectedKey.slice("student:".length);
-    if (label === "Innovation School") {
+  if (enrollmentKey?.startsWith('student:')) {
+    const label = enrollmentKey.slice('student:'.length);
+    if (label === 'Innovation School' || label === 'Innovation School (IS)') {
       filters.is_innovation_school = true;
     }
     if (label === "IS Fellowship") {
@@ -79,21 +95,30 @@ export const buildSidebarApiFilters = ({
     return filters;
   }
 
-  if (selectedKey.startsWith("residency:")) {
-    const label = selectedKey.slice("residency:".length);
-    if (label === "Not Assigned") {
-      filters.residency_assigned = false;
-    }
+  const { year, season, cohort } = isSelection;
+
+  if (year === 'not-assigned' || season === 'not-assigned' || cohort === 'not-assigned') {
+    filters.residency_assigned = false;
     return filters;
   }
 
-  if (selectedKey.startsWith("cohort:")) {
-    const label = selectedKey.slice("cohort:".length);
-    const residencyIds = normalizeResidencyIds(cohortIdsByLabel.get(label));
-    const [residencyId] = residencyIds ?? [];
-    if (residencyId) {
-      filters.residency = residencyId;
-    }
+  if (typeof cohort === 'number' && cohort > 0) {
+    filters.residency = cohort;
+    return filters;
+  }
+
+  if (year === '2026' || year === '2027') {
+    filters.year = Number(year);
+  }
+
+  if (season === 'summer' || season === 'winter') {
+    filters.season = season;
+  }
+
+  if (matchingResidencyIds.length === 1) {
+    filters.residency = matchingResidencyIds[0];
+  } else if (matchingResidencyIds.length > 1) {
+    filters.residency_ids = matchingResidencyIds;
   }
 
   return filters;
@@ -129,17 +154,17 @@ export const stripReadinessApiFilter = (filters: ApiFilters): ApiFilters => {
   return next;
 };
 
-const isAllStudentsSidebarKey = (selectedKey: string) =>
-  selectedKey === DEFAULT_SIDEBAR_FILTER_KEY ||
-  selectedKey === SIDEBAR_FILTER_KEY.student("All Students");
+const isAllStudentsSidebarKey = (enrollmentKey: string | null) =>
+  enrollmentKey === DEFAULT_SIDEBAR_FILTER_KEY
+  || enrollmentKey === SIDEBAR_FILTER_KEY.student('All Students');
 
 /** Total students in scope for the active left-sidebar filter (matches sidebar radio count). */
 export const resolveSidebarSelectionTotal = (
-  counts: ApiStudentAnalyticsResponse["counts"],
-  selectedKey: string,
+  counts: ApiStudentAnalyticsResponse['counts'],
+  enrollmentKey: string | null,
   filteredTotalCount: number,
 ): number => {
-  if (isAllStudentsSidebarKey(selectedKey)) {
+  if (!enrollmentKey || isAllStudentsSidebarKey(enrollmentKey)) {
     return filteredTotalCount > 0 ? filteredTotalCount : counts.all;
   }
 
@@ -147,9 +172,9 @@ export const resolveSidebarSelectionTotal = (
     return filteredTotalCount;
   }
 
-  if (selectedKey.startsWith("student:")) {
-    const label = selectedKey.slice("student:".length);
-    if (label === "Innovation School") {
+  if (enrollmentKey.startsWith('student:')) {
+    const label = enrollmentKey.slice('student:'.length);
+    if (label === 'Innovation School' || label === 'Innovation School (IS)') {
       return counts.is_innovation_school;
     }
     if (label === "IS Fellowship") {
@@ -160,12 +185,12 @@ export const resolveSidebarSelectionTotal = (
     }
   }
 
-  if (selectedKey.startsWith("residency:")) {
+  if (enrollmentKey.startsWith('residency:')) {
     return counts.residency_not_assigned;
   }
 
-  if (selectedKey.startsWith("cohort:")) {
-    const label = selectedKey.slice("cohort:".length);
+  if (enrollmentKey.startsWith('cohort:')) {
+    const label = enrollmentKey.slice('cohort:'.length);
     return counts.per_residency[label] ?? 0;
   }
 
@@ -197,8 +222,17 @@ const buildFilterParams = (filters: ApiFilters = {}) => {
   if (filters.residency_assigned !== undefined) {
     params.residency_assigned = filters.residency_assigned;
   }
-  if (filters.residency !== undefined) {
+  if (filters.residency_ids !== undefined && filters.residency_ids.length > 0) {
+    // Backend expects residency_ids=[1,2] (bracket list), not repeated residency=.
+    params.residency_ids = `[${filters.residency_ids.join(",")}]`;
+  } else if (filters.residency !== undefined) {
     params.residency = filters.residency;
+  }
+  if (filters.year !== undefined) {
+    params.year = filters.year;
+  }
+  if (filters.season !== undefined) {
+    params.season = filters.season;
   }
   if (filters.is_residence_ready !== undefined) {
     params.is_residence_ready = filters.is_residence_ready;
@@ -251,6 +285,7 @@ export async function fetchStudentsAnalyticsApi({
 
 /**
  * Residency list for cohort sidebar IDs (same client pattern as student analytics).
+ * Supports both a bare array and `{ results, available_years }`.
  */
 export async function fetchResidenciesApi(): Promise<ApiResidency[]> {
   const url = getBaseUrl().replace(/\/students\/?$/, "/residencies/");
@@ -259,7 +294,13 @@ export async function fetchResidenciesApi(): Promise<ApiResidency[]> {
   // return Array.isArray(data) ? data : (data.results ?? []);
 
   const { data } = await axios.get(url);
-  return Array.isArray(data) ? data : (data.results ?? []);
+  if (Array.isArray(data)) {
+    return data as ApiResidency[];
+  }
+  if (data && typeof data === 'object' && Array.isArray((data as { results?: unknown }).results)) {
+    return (data as { results: ApiResidency[] }).results;
+  }
+  return [];
 }
 
 const resolveSiblingApiUrl = (segment: string) =>
