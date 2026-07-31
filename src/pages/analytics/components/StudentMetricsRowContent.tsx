@@ -2,7 +2,6 @@ import type { ElementType, MouseEvent } from 'react';
 
 import type { StudentRecord } from '../data/analyticsData';
 import CourseMetricCard from './CourseMetricCard';
-import { dotClassForCourse } from './studentMetricsShared';
 
 type StudentMetricsRowContentProps = {
   student: StudentRecord;
@@ -23,7 +22,7 @@ const StudentMetricsRowContent = ({
     <Cell className="ongoing-cell col-ongoing">
       {student.ongoingCourses.map((entry) => (
         <div key={entry.code} className="ongoing-entry">
-          <span className={`ongoing-dot ${dotClassForCourse(entry.code)}`} aria-hidden="true" />
+          <span className="ongoing-dot" aria-hidden="true" />
           <strong>{entry.code}</strong>
         </div>
       ))}
