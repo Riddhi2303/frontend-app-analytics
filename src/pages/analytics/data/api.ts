@@ -16,8 +16,10 @@ export type ApiFilters = {
   residency?: number;
   /** Multiple residencies for year+season (no specific cohort). Sent as residency_ids=[1,2]. */
   residency_ids?: number[];
-  year?: number;
-  season?: 'summer' | 'winter';
+  /** Year number, or `"not_assigned"` for Not Assigned. */
+  year?: number | 'not_assigned';
+  /** Season value, or `"not_assigned"` for Not Assigned. */
+  season?: 'summer' | 'winter' | 'not_assigned';
   is_residence_ready?: boolean;
   inactive_for_two_weeks?: boolean;
   search?: string;
@@ -97,7 +99,26 @@ export const buildSidebarApiFilters = ({
 
   const { year, season, cohort } = isSelection;
 
-  if (year === 'not-assigned' || season === 'not-assigned' || cohort === 'not-assigned') {
+  if (year === 'not-assigned') {
+    filters.year = 'not_assigned';
+    return filters;
+  }
+
+  if (season === 'not-assigned') {
+    if (year === '2026' || year === '2027') {
+      filters.year = Number(year);
+    }
+    filters.season = 'not_assigned';
+    return filters;
+  }
+
+  if (cohort === 'not-assigned') {
+    if (year === '2026' || year === '2027') {
+      filters.year = Number(year);
+    }
+    if (season === 'summer' || season === 'winter') {
+      filters.season = season;
+    }
     filters.residency_assigned = false;
     return filters;
   }
@@ -203,8 +224,9 @@ type FetchStudentsParams = {
   filters?: ApiFilters;
 };
 
-/** Empty in dev so webpack-dev-server proxy handles CORS; absolute in production. */
-const MASH_API_ORIGIN = 'https://mash.makersasylum.com';
+/** Empty in development so webpack-dev-server proxy handles CORS; absolute in production. */
+const MASH_API_ORIGIN =
+  process.env.NODE_ENV === 'development' ? '' : 'https://mash.makersasylum.com';
 
 const getBaseUrl = () => `${MASH_API_ORIGIN}/student-analytics/api/students/`;
 const buildFilterParams = (filters: ApiFilters = {}) => {
