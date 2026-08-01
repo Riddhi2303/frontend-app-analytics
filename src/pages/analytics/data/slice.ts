@@ -56,12 +56,6 @@ export type AnalyticsState = {
   residencyCounts: ApiStudentAnalyticsResponse['counts'] | null;
   residencyCountsLoading: boolean;
   residencyCountsError: string | null;
-  /**
-   * Sidebar year/season/cohort facets for the active year/season/cohort scope
-   * (`/counts/filters?year=&season=&…`). Null when no sidebar scope is active.
-   */
-  scopedFilterCounts: ApiStudentAnalyticsResponse['counts'] | null;
-  scopedFilterCountsLoading: boolean;
   /** Top readiness chips — each total from pagination.total_count. */
   topFilterCounts: TopFilterCounts | null;
   topFilterCountsLoading: TopFilterCountsLoading;
@@ -121,8 +115,6 @@ const initialState: AnalyticsState = {
   residencyCounts: null,
   residencyCountsLoading: false,
   residencyCountsError: null,
-  scopedFilterCounts: null,
-  scopedFilterCountsLoading: false,
   topFilterCounts: null,
   topFilterCountsLoading: initialTopFilterCountsLoading(),
   topFilterCountsError: null,
@@ -197,8 +189,6 @@ const slice = createSlice({
       .addMatcher(
         (action) => action.type === FETCH_FACET_COUNTS_REQUEST,
         (state) => {
-          state.scopedFilterCounts = null;
-          state.scopedFilterCountsLoading = true;
           state.topFilterCountsLoading = {
             all: true,
             notReady: true,
@@ -211,15 +201,10 @@ const slice = createSlice({
       .addMatcher(
         (action): action is {
           type: typeof FETCH_FACET_COUNTS_SUCCESS;
-          payload: {
-            topFilterCounts: TopFilterCounts;
-            scopedFilterCounts: ApiStudentAnalyticsResponse['counts'];
-          };
+          payload: TopFilterCounts;
         } => action.type === FETCH_FACET_COUNTS_SUCCESS,
         (state, action) => {
-          state.topFilterCounts = action.payload.topFilterCounts;
-          state.scopedFilterCounts = action.payload.scopedFilterCounts;
-          state.scopedFilterCountsLoading = false;
+          state.topFilterCounts = action.payload;
           state.topFilterCountsLoading = initialTopFilterCountsLoading();
           state.topFilterCountsError = null;
         },
@@ -270,7 +255,6 @@ const slice = createSlice({
           action.type === FETCH_FACET_COUNTS_FAILURE
         ),
         (state, action) => {
-          state.scopedFilterCountsLoading = false;
           state.topFilterCountsLoading = initialTopFilterCountsLoading();
           state.topFilterCountsError = action.payload;
         },
