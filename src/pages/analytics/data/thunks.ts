@@ -85,10 +85,13 @@ export const fetchTopFilterCounts = (scopeFilters: ApiFilters = {}) => async (
       dispatch({
         type: FETCH_FACET_COUNTS_SUCCESS,
         payload: {
-          all: counts.all,
-          notReady: counts.not_ready_for_residency,
-          ready: counts.ready_for_residency,
-          inactive: counts.inactive_for_two_weeks,
+          topFilterCounts: {
+            all: counts.all,
+            notReady: counts.not_ready_for_residency,
+            ready: counts.ready_for_residency,
+            inactive: counts.inactive_for_two_weeks,
+          },
+          scopedFilterCounts: counts,
         },
       });
     } catch (error: unknown) {
