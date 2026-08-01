@@ -84,12 +84,6 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   const residencyCountsLoading = useSelector(
     (state: RootState) => state.analyticsReducer.residencyCountsLoading,
   );
-  const scopedFilterCounts = useSelector(
-    (state: RootState) => state.analyticsReducer.scopedFilterCounts,
-  );
-  const scopedFilterCountsLoading = useSelector(
-    (state: RootState) => state.analyticsReducer.scopedFilterCountsLoading,
-  );
   const apiCounts = useSelector((state: RootState) => state.analyticsReducer.counts);
   const topFilterCounts = useSelector((state: RootState) => state.analyticsReducer.topFilterCounts);
   const topFilterCountsLoading = useSelector(
@@ -130,32 +124,21 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   }, [searchValue]);
 
   const sidebarCounts = filterCounts ?? EMPTY_COUNTS;
-  /** Year / season / cohort selection uses scoped `/counts/filters` response. */
-  const isIsYearSeasonScope = selectedYear != null
-    || selectedSeason != null
-    || selectedCohort != null;
-  const yearSeasonCountData = isIsYearSeasonScope
-    ? (scopedFilterCounts ?? apiCounts ?? filterCounts)
-    : (filterCounts ?? residencyCounts ?? apiCounts);
-  const cohortCountData = isIsYearSeasonScope
-    ? (scopedFilterCounts ?? residencyCounts ?? apiCounts)
-    : (residencyCounts ?? apiCounts);
+  const cohortCountData = residencyCounts ?? apiCounts;
   const cohortCountsReady = Boolean(cohortCountData?.per_residency);
+  /** Year/season facets from global `/counts/filters` (`per_year` / `per_season`). */
+  const yearSeasonCountData = filterCounts ?? residencyCounts ?? apiCounts;
   const yearSeasonCountsReady = Boolean(
-    isIsYearSeasonScope
-      ? scopedFilterCounts != null
-      : (yearSeasonCountData?.per_year || yearSeasonCountData?.per_season || filterCounts != null),
+    yearSeasonCountData?.per_year || yearSeasonCountData?.per_season || filterCounts != null,
   );
   const yearSeasonCountsLoading = Boolean(
-    isIsYearSeasonScope
-      ? scopedFilterCountsLoading
-      : (!yearSeasonCountsReady && (filterCountsLoading || residencyCountsLoading)),
+    !yearSeasonCountsReady && (filterCountsLoading || residencyCountsLoading),
   );
   const enrollmentCountsLoading = filterCountsLoading;
   /** Only show cohort spinner while the dedicated residency-counts request is in flight. */
-  const cohortCountsLoading = isIsYearSeasonScope
-    ? scopedFilterCountsLoading
-    : (residencies.length > 0 && !cohortCountsReady && residencyCountsLoading);
+  const cohortCountsLoading = residencies.length > 0
+    && !cohortCountsReady
+    && residencyCountsLoading;
 
   const enrollmentCountsReady = filterCounts != null;
 
@@ -183,10 +166,8 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
 
   const studentFilters = useMemo(() => buildStudentFilters(sidebarCounts), [sidebarCounts]);
   const notAssignedFilter = useMemo(
-    () => buildNotAssignedFilter(
-      (isIsYearSeasonScope ? scopedFilterCounts : null) ?? sidebarCounts,
-    ),
-    [isIsYearSeasonScope, scopedFilterCounts, sidebarCounts],
+    () => buildNotAssignedFilter(sidebarCounts),
+    [sidebarCounts],
   );
 
   /** Cohort list for selected year + season; counts update when facet API returns. */
