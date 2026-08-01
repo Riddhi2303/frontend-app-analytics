@@ -25,14 +25,14 @@ import {
   buildCohortFiltersFromResidencies,
   buildNotAssignedFilter,
   buildReadinessCounts,
+  buildSeasonCountsFromApi,
   buildStudentFilters,
+  buildYearCountsFromApi,
   collectCourseCodes,
   DEFAULT_IS_SEASON,
   DEFAULT_IS_YEAR,
   filterResidenciesByYearSeason,
   mapStudentsFromApi,
-  sumResidencyCountsForSeason,
-  sumResidencyCountsForYear,
   type IsSeasonOption,
   type IsYearOption,
 } from './data/analyticsData';
@@ -59,6 +59,8 @@ const EMPTY_COUNTS = {
   ready_for_residency: 0,
   inactive_for_two_weeks: 0,
   per_residency: {} as Record<string, number>,
+  per_year: {} as Record<string, number>,
+  per_season: {} as Record<string, number>,
 };
 
 type AppContextShape = {
@@ -124,6 +126,14 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   const sidebarCounts = filterCounts ?? EMPTY_COUNTS;
   const cohortCountData = residencyCounts ?? apiCounts;
   const cohortCountsReady = Boolean(cohortCountData?.per_residency);
+  /** Year/season facets live on the filters (or residency) counts payload. */
+  const yearSeasonCountData = filterCounts ?? residencyCounts ?? apiCounts;
+  const yearSeasonCountsReady = Boolean(
+    yearSeasonCountData?.per_year || yearSeasonCountData?.per_season || filterCounts != null,
+  );
+  const yearSeasonCountsLoading = Boolean(
+    !yearSeasonCountsReady && (filterCountsLoading || residencyCountsLoading),
+  );
   const enrollmentCountsLoading = filterCountsLoading;
   /** Only show cohort spinner while the dedicated residency-counts request is in flight. */
   const cohortCountsLoading = residencies.length > 0
@@ -172,20 +182,15 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     [cohortCountData, residencies, selectedSeason, selectedYear],
   );
 
-  const yearCounts = useMemo(() => ({
-    '2026': sumResidencyCountsForYear(residencies, '2026', cohortCountData),
-    '2027': sumResidencyCountsForYear(residencies, '2027', cohortCountData),
-    'not-assigned': sidebarCounts.residency_not_assigned,
-  }), [cohortCountData, residencies, sidebarCounts.residency_not_assigned]);
+  const yearCounts = useMemo(
+    () => buildYearCountsFromApi(yearSeasonCountData),
+    [yearSeasonCountData],
+  );
 
-  const seasonCounts = useMemo(() => {
-    const year = selectedYear === '2026' || selectedYear === '2027' ? selectedYear : '2026';
-    return {
-      summer: sumResidencyCountsForSeason(residencies, year, 'summer', cohortCountData),
-      winter: sumResidencyCountsForSeason(residencies, year, 'winter', cohortCountData),
-      'not-assigned': sidebarCounts.residency_not_assigned,
-    };
-  }, [cohortCountData, residencies, selectedYear, sidebarCounts.residency_not_assigned]);
+  const seasonCounts = useMemo(
+    () => buildSeasonCountsFromApi(yearSeasonCountData),
+    [yearSeasonCountData],
+  );
 
   /** Sidebar + search scope for top chip `/counts/filters` calls (no readiness). */
   const topCountScopeFilters = useMemo(() => {
@@ -407,10 +412,8 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     if (year === 'not-assigned') {
       setSelectedSeason(null);
       setSelectedCohort(null);
-    } else if (selectedSeason === 'not-assigned' || selectedSeason == null) {
-      setSelectedSeason(DEFAULT_IS_SEASON);
-      setSelectedCohort(null);
     } else {
+      // Keep current season as-is (including null after Clear). Only 2026+winter is the initial page default.
       setSelectedCohort(null);
     }
     setSelectedReadiness('all');
@@ -508,6 +511,8 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
           onClearCohort={clearCohort}
           enrollmentCountsLoading={enrollmentCountsLoading}
           enrollmentCountsReady={enrollmentCountsReady}
+          yearSeasonCountsLoading={yearSeasonCountsLoading}
+          yearSeasonCountsReady={yearSeasonCountsReady}
           cohortCountsLoading={cohortCountsLoading}
           cohortCountsReady={cohortCountsReady}
         />

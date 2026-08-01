@@ -267,6 +267,15 @@ export type ApiStudentAnalyticsResponse = {
     active_last_two_weeks?: number;
     per_residency: Record<string, number>;
     per_residency_ready?: Record<string, number>;
+    /** Sidebar IS Year counts — keys like `"2026"`, `"2027"`, `"unassigned"`. */
+    per_year?: Record<string, number>;
+    /** Sidebar IS Season counts — keys `"summer"`, `"winter"`, `"unassigned"`. */
+    per_season?: {
+      summer?: number;
+      winter?: number;
+      unassigned?: number;
+      [key: string]: number | undefined;
+    };
   };
 };
 
@@ -691,28 +700,28 @@ const lookupResidencyCount = (
   ?? 0
 );
 
-/** Sum student counts for residencies matching a year (any season). */
-export const sumResidencyCountsForYear = (
-  residencies: ApiResidency[],
-  year: IsYearOption,
+/** Sidebar IS Year counts from API `counts.per_year` (`unassigned` → Not Assigned). */
+export const buildYearCountsFromApi = (
   counts: ApiStudentAnalyticsResponse['counts'] | null,
-): number => {
-  const perResidency = counts?.per_residency ?? {};
-  return residencies
-    .filter((residency) => residencyYear(residency) === year)
-    .reduce((sum, residency) => sum + lookupResidencyCount(perResidency, residency), 0);
+): Record<IsYearOption, number> => {
+  const perYear = counts?.per_year ?? {};
+  return {
+    '2026': perYear['2026'] ?? 0,
+    '2027': perYear['2027'] ?? 0,
+    'not-assigned': perYear.unassigned ?? counts?.residency_not_assigned ?? 0,
+  };
 };
 
-/** Sum student counts for residencies matching year + season. */
-export const sumResidencyCountsForSeason = (
-  residencies: ApiResidency[],
-  year: IsYearOption,
-  season: Exclude<IsSeasonOption, 'not-assigned'>,
+/** Sidebar IS Season counts from API `counts.per_season` (`unassigned` → Not Assigned). */
+export const buildSeasonCountsFromApi = (
   counts: ApiStudentAnalyticsResponse['counts'] | null,
-): number => {
-  const perResidency = counts?.per_residency ?? {};
-  return filterResidenciesByYearSeason(residencies, year, season)
-    .reduce((sum, residency) => sum + lookupResidencyCount(perResidency, residency), 0);
+): Record<IsSeasonOption, number> => {
+  const perSeason = counts?.per_season ?? {};
+  return {
+    summer: perSeason.summer ?? 0,
+    winter: perSeason.winter ?? 0,
+    'not-assigned': perSeason.unassigned ?? 0,
+  };
 };
 
 /** Cohort sidebar from residencies API — visible as soon as residencies load; counts from facet API. */

@@ -79,6 +79,8 @@ type AnalyticsSidebarProps = {
   onClearCohort: () => void;
   enrollmentCountsLoading?: boolean;
   enrollmentCountsReady?: boolean;
+  yearSeasonCountsLoading?: boolean;
+  yearSeasonCountsReady?: boolean;
   cohortCountsLoading?: boolean;
   cohortCountsReady?: boolean;
 };
@@ -101,6 +103,8 @@ const AnalyticsSidebar = ({
   onClearCohort,
   enrollmentCountsLoading = false,
   enrollmentCountsReady = false,
+  yearSeasonCountsLoading = false,
+  yearSeasonCountsReady = false,
   cohortCountsLoading = false,
   cohortCountsReady = false,
 }: AnalyticsSidebarProps) => {
@@ -140,13 +144,7 @@ const AnalyticsSidebar = ({
       <div className="filter-list">
         {IS_YEAR_OPTIONS.map((year) => (
           <label key={year} className="filter-row">
-            <RowLoadingIndicator
-              loading={
-                year === 'not-assigned'
-                  ? enrollmentCountsLoading
-                  : cohortCountsLoading
-              }
-            />
+            <RowLoadingIndicator loading={yearSeasonCountsLoading} />
             <input
               type="radio"
               name={YEAR_RADIO}
@@ -157,16 +155,8 @@ const AnalyticsSidebar = ({
             <span className="filter-label">{yearLabel(year)}</span>
             <FilterCount
               count={yearCounts[year]}
-              loading={
-                year === 'not-assigned'
-                  ? enrollmentCountsLoading
-                  : cohortCountsLoading
-              }
-              ready={
-                year === 'not-assigned'
-                  ? enrollmentCountsReady
-                  : cohortCountsReady
-              }
+              loading={yearSeasonCountsLoading}
+              ready={yearSeasonCountsReady}
               danger={year === 'not-assigned'}
             />
           </label>
@@ -187,13 +177,7 @@ const AnalyticsSidebar = ({
             key={season}
             className={`filter-row ${seasonEnabled ? '' : 'filter-row--disabled'}`}
           >
-            <RowLoadingIndicator
-              loading={
-                season === 'not-assigned'
-                  ? enrollmentCountsLoading
-                  : cohortCountsLoading
-              }
-            />
+            <RowLoadingIndicator loading={yearSeasonCountsLoading} />
             <input
               type="radio"
               name={SEASON_RADIO}
@@ -205,16 +189,8 @@ const AnalyticsSidebar = ({
             <span className="filter-label">{seasonLabel(season)}</span>
             <FilterCount
               count={seasonCounts[season]}
-              loading={
-                season === 'not-assigned'
-                  ? enrollmentCountsLoading
-                  : cohortCountsLoading
-              }
-              ready={
-                season === 'not-assigned'
-                  ? enrollmentCountsReady
-                  : cohortCountsReady
-              }
+              loading={yearSeasonCountsLoading}
+              ready={yearSeasonCountsReady}
               danger={season === 'not-assigned'}
             />
           </label>
