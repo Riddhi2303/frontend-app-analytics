@@ -39,7 +39,7 @@ const FilterCount = ({
   ready?: boolean;
   danger?: boolean;
 }) => {
-  if (!ready && loading) {
+  if (loading && !ready) {
     return <span className={`filter-count ${danger ? 'danger' : ''}`} />;
   }
 
@@ -77,15 +77,26 @@ type AnalyticsSidebarProps = {
   onSelectCohort: (cohort: number | 'not-assigned') => void;
   onClearSeason: () => void;
   onClearCohort: () => void;
-  enrollmentCountsLoading?: boolean;
+  /** Global enrollment list ready (unfiltered `/counts/filters/`). */
   enrollmentCountsReady?: boolean;
+  /** First load: show loaders on every enrollment row. */
+  enrollmentListLoading?: boolean;
   /** IS Year always uses global `/counts/filters` (not scoped). */
   yearCountsLoading?: boolean;
   yearCountsReady?: boolean;
-  yearSeasonCountsLoading?: boolean;
   yearSeasonCountsReady?: boolean;
-  cohortCountsLoading?: boolean;
+  /** First load / season refetch: show loaders on every season row. */
+  seasonListLoading?: boolean;
   cohortCountsReady?: boolean;
+  /** When true, every cohort row shows a loader (first season load). */
+  cohortListLoading?: boolean;
+  /**
+   * Per-row scoped loaders — only the active filter option shows a spinner
+   * (enrollment / season / cohort). Year never uses these.
+   */
+  loadingEnrollmentKey?: string | null;
+  loadingSeason?: IsSeasonOption | null;
+  loadingCohort?: number | 'not-assigned' | null;
 };
 
 const AnalyticsSidebar = ({
@@ -104,14 +115,17 @@ const AnalyticsSidebar = ({
   onSelectCohort,
   onClearSeason,
   onClearCohort,
-  enrollmentCountsLoading = false,
   enrollmentCountsReady = false,
+  enrollmentListLoading = false,
   yearCountsLoading = false,
   yearCountsReady = false,
-  yearSeasonCountsLoading = false,
   yearSeasonCountsReady = false,
-  cohortCountsLoading = false,
+  seasonListLoading = false,
   cohortCountsReady = false,
+  cohortListLoading = false,
+  loadingEnrollmentKey = null,
+  loadingSeason = null,
+  loadingCohort = null,
 }: AnalyticsSidebarProps) => {
   const seasonEnabled = isYearActiveForSeason(selectedYear);
   const cohortEnabled = isSeasonActiveForCohort(selectedSeason);
@@ -124,9 +138,10 @@ const AnalyticsSidebar = ({
       <div className="filter-list">
         {studentFilters.map((item) => {
           const filterKey = SIDEBAR_FILTER_KEY.student(item.label);
+          const rowLoading = enrollmentListLoading || loadingEnrollmentKey === filterKey;
           return (
             <label key={`student-${item.label}`} className="filter-row">
-              <RowLoadingIndicator loading={enrollmentCountsLoading} />
+              <RowLoadingIndicator loading={rowLoading} />
               <input
                 type="radio"
                 name={ENROLLMENT_RADIO}
@@ -137,8 +152,8 @@ const AnalyticsSidebar = ({
               <span className="filter-label">{item.label}</span>
               <FilterCount
                 count={item.count}
-                loading={enrollmentCountsLoading}
-                ready={enrollmentCountsReady}
+                loading={rowLoading}
+                ready={rowLoading ? false : enrollmentCountsReady}
               />
             </label>
           );
@@ -177,29 +192,32 @@ const AnalyticsSidebar = ({
         )}
       </div>
       <div className={`filter-list ${seasonEnabled ? '' : 'filter-list--disabled'}`}>
-        {IS_SEASON_OPTIONS.map((season) => (
-          <label
-            key={season}
-            className={`filter-row ${seasonEnabled ? '' : 'filter-row--disabled'}`}
-          >
-            <RowLoadingIndicator loading={yearSeasonCountsLoading} />
-            <input
-              type="radio"
-              name={SEASON_RADIO}
-              className="filter-radio filter-radio--accent"
-              checked={selectedSeason === season}
-              disabled={!seasonEnabled}
-              onChange={() => onSelectSeason(season)}
-            />
-            <span className="filter-label">{seasonLabel(season)}</span>
-            <FilterCount
-              count={seasonCounts[season]}
-              loading={yearSeasonCountsLoading}
-              ready={yearSeasonCountsReady}
-              danger={season === 'not-assigned'}
-            />
-          </label>
-        ))}
+        {IS_SEASON_OPTIONS.map((season) => {
+          const rowLoading = seasonListLoading || loadingSeason === season;
+          return (
+            <label
+              key={season}
+              className={`filter-row ${seasonEnabled ? '' : 'filter-row--disabled'}`}
+            >
+              <RowLoadingIndicator loading={rowLoading} />
+              <input
+                type="radio"
+                name={SEASON_RADIO}
+                className="filter-radio filter-radio--accent"
+                checked={selectedSeason === season}
+                disabled={!seasonEnabled}
+                onChange={() => onSelectSeason(season)}
+              />
+              <span className="filter-label">{seasonLabel(season)}</span>
+              <FilterCount
+                count={seasonCounts[season]}
+                loading={rowLoading}
+                ready={rowLoading ? false : yearSeasonCountsReady}
+                danger={season === 'not-assigned'}
+              />
+            </label>
+          );
+        })}
       </div>
 
       <div className="sidebar-section-heading">
@@ -218,7 +236,7 @@ const AnalyticsSidebar = ({
       ) : (
         <div className="cohort-list">
           <label className="filter-row cohort-not-assigned">
-            <RowLoadingIndicator loading={enrollmentCountsLoading} />
+            <RowLoadingIndicator loading={loadingCohort === 'not-assigned' || cohortListLoading} />
             <input
               type="radio"
               name={COHORT_RADIO}
@@ -228,40 +246,48 @@ const AnalyticsSidebar = ({
             />
             <span className="filter-label">{notAssignedFilter.label}</span>
             <span className="cohort-split-count">
-              <em className="cohort-split-count__total cohort-split-count__total--danger">
-                {notAssignedFilter.count}
-              </em>
-              <span className="cohort-split-count__sep" aria-hidden="true">|</span>
-              <em className="cohort-split-count__ready">0</em>
+              {loadingCohort === 'not-assigned' || cohortListLoading ? null : (
+                <>
+                  <em className="cohort-split-count__total cohort-split-count__total--danger">
+                    {notAssignedFilter.count}
+                  </em>
+                  <span className="cohort-split-count__sep" aria-hidden="true">|</span>
+                  <em className="cohort-split-count__ready">0</em>
+                </>
+              )}
             </span>
           </label>
 
           {cohortFilters.length === 0 ? (
             <p className="cohort-empty-msg">No cohorts for this year and season.</p>
-          ) : cohortFilters.map((item) => (
-            <label key={`cohort-${item.id}`} className="cohort-row">
-              <RowLoadingIndicator loading={cohortCountsLoading} />
-              <input
-                type="radio"
-                name={COHORT_RADIO}
-                className="filter-radio filter-radio--accent"
-                checked={selectedCohort === item.id}
-                onChange={() => onSelectCohort(item.id)}
-              />
-              <div className="cohort-copy">
-                <span className="cohort-label">{item.label}</span>
-              </div>
-              <span className="cohort-split-count">
-                {!cohortCountsReady && cohortCountsLoading ? null : (
-                  <>
-                    <em className="cohort-split-count__total">{item.total}</em>
-                    <span className="cohort-split-count__sep" aria-hidden="true">|</span>
-                    <em className="cohort-split-count__ready">{item.ready}</em>
-                  </>
-                )}
-              </span>
-            </label>
-          ))}
+          ) : cohortFilters.map((item) => {
+            /** Cohort click: loader + count refresh only on that row. Season change: all rows. */
+            const rowLoading = loadingCohort === item.id || cohortListLoading;
+            return (
+              <label key={`cohort-${item.id}`} className="cohort-row">
+                <RowLoadingIndicator loading={rowLoading} />
+                <input
+                  type="radio"
+                  name={COHORT_RADIO}
+                  className="filter-radio filter-radio--accent"
+                  checked={selectedCohort === item.id}
+                  onChange={() => onSelectCohort(item.id)}
+                />
+                <div className="cohort-copy">
+                  <span className="cohort-label">{item.label}</span>
+                </div>
+                <span className="cohort-split-count">
+                  {rowLoading ? null : (
+                    <>
+                      <em className="cohort-split-count__total">{item.total}</em>
+                      <span className="cohort-split-count__sep" aria-hidden="true">|</span>
+                      <em className="cohort-split-count__ready">{item.ready}</em>
+                    </>
+                  )}
+                </span>
+              </label>
+            );
+          })}
         </div>
       )}
     </aside>
