@@ -128,34 +128,6 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     return () => window.clearTimeout(handle);
   }, [searchValue]);
 
-  const sidebarCounts = filterCounts ?? EMPTY_COUNTS;
-  /** Season + cohort counts come from scoped `/counts/filters` with year/season applied. */
-  const isIsFilterScope = enrollmentKey == null
-    && (selectedYear != null || selectedSeason != null || selectedCohort != null);
-  const seasonCountData = isIsFilterScope
-    ? (scopedFilterCounts ?? filterCounts)
-    : filterCounts;
-  const cohortCountData = isIsFilterScope
-    ? (scopedFilterCounts ?? residencyCounts ?? apiCounts)
-    : (residencyCounts ?? apiCounts);
-  const cohortCountsReady = Boolean(cohortCountData?.per_residency);
-  const yearSeasonCountsReady = Boolean(
-    isIsFilterScope
-      ? scopedFilterCounts != null
-      : (seasonCountData?.per_season || filterCounts != null),
-  );
-  const yearSeasonCountsLoading = Boolean(
-    isIsFilterScope
-      ? scopedFilterCountsLoading
-      : (!yearSeasonCountsReady && filterCountsLoading),
-  );
-  const enrollmentCountsLoading = filterCountsLoading;
-  const cohortCountsLoading = isIsFilterScope
-    ? scopedFilterCountsLoading
-    : (residencies.length > 0 && !cohortCountsReady && residencyCountsLoading);
-
-  const enrollmentCountsReady = filterCounts != null;
-
   const isSelection = useMemo<SidebarIsSelection>(() => ({
     year: selectedYear,
     season: selectedSeason,
@@ -167,12 +139,49 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     isSelection,
   }), [enrollmentKey, isSelection]);
 
-  const studentFilters = useMemo(() => buildStudentFilters(sidebarCounts), [sidebarCounts]);
+  /**
+   * All sidebar counts (enrollment / season / cohort) follow the applied filter via
+   * scoped `/counts/filters`. IS Year counts always stay on the global filters response.
+   */
+  const isScopedCountsScope = hasSidebarApiFilters(sidebarFilters);
+  const activeSidebarCounts = (
+    isScopedCountsScope ? scopedFilterCounts : null
+  ) ?? filterCounts ?? EMPTY_COUNTS;
+
+  const cohortCountData = isScopedCountsScope
+    ? (scopedFilterCounts ?? residencyCounts ?? apiCounts)
+    : (residencyCounts ?? apiCounts);
+  const cohortCountsReady = Boolean(cohortCountData?.per_residency);
+  const seasonCountData = isScopedCountsScope
+    ? (scopedFilterCounts ?? filterCounts)
+    : filterCounts;
+  const yearSeasonCountsReady = Boolean(
+    isScopedCountsScope
+      ? scopedFilterCounts != null
+      : (seasonCountData?.per_season || filterCounts != null),
+  );
+  const yearSeasonCountsLoading = Boolean(
+    isScopedCountsScope
+      ? scopedFilterCountsLoading
+      : (!yearSeasonCountsReady && filterCountsLoading),
+  );
+  const enrollmentCountsLoading = Boolean(
+    isScopedCountsScope ? scopedFilterCountsLoading : filterCountsLoading,
+  );
+  const enrollmentCountsReady = Boolean(
+    isScopedCountsScope ? scopedFilterCounts != null : filterCounts != null,
+  );
+  const cohortCountsLoading = isScopedCountsScope
+    ? scopedFilterCountsLoading
+    : (residencies.length > 0 && !cohortCountsReady && residencyCountsLoading);
+
+  const studentFilters = useMemo(
+    () => buildStudentFilters(activeSidebarCounts),
+    [activeSidebarCounts],
+  );
   const notAssignedFilter = useMemo(
-    () => buildNotAssignedFilter(
-      (isIsFilterScope ? scopedFilterCounts : null) ?? sidebarCounts,
-    ),
-    [isIsFilterScope, scopedFilterCounts, sidebarCounts],
+    () => buildNotAssignedFilter(activeSidebarCounts),
+    [activeSidebarCounts],
   );
 
   /** Cohort list for selected year + season; counts update when facet API returns. */
@@ -516,6 +525,8 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
           onClearCohort={clearCohort}
           enrollmentCountsLoading={enrollmentCountsLoading}
           enrollmentCountsReady={enrollmentCountsReady}
+          yearCountsLoading={filterCountsLoading}
+          yearCountsReady={filterCounts != null}
           yearSeasonCountsLoading={yearSeasonCountsLoading}
           yearSeasonCountsReady={yearSeasonCountsReady}
           cohortCountsLoading={cohortCountsLoading}
