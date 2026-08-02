@@ -144,7 +144,7 @@ const AnalyticsSidebar = ({
       <div className="filter-list">
         {IS_YEAR_OPTIONS.map((year) => (
           <label key={year} className="filter-row">
-            <RowLoadingIndicator loading={yearSeasonCountsLoading} />
+            <RowLoadingIndicator loading={enrollmentCountsLoading} />
             <input
               type="radio"
               name={YEAR_RADIO}
@@ -155,8 +155,8 @@ const AnalyticsSidebar = ({
             <span className="filter-label">{yearLabel(year)}</span>
             <FilterCount
               count={yearCounts[year]}
-              loading={yearSeasonCountsLoading}
-              ready={yearSeasonCountsReady}
+              loading={enrollmentCountsLoading}
+              ready={enrollmentCountsReady}
               danger={year === 'not-assigned'}
             />
           </label>
