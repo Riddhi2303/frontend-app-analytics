@@ -11,6 +11,7 @@ import {
   buildSidebarApiFilters,
   canAssignResidency,
   hasSidebarApiFilters,
+  isAllStudentsSidebarKey,
   serializeApiFilters,
   SIDEBAR_FILTER_KEY,
   type MyRolesResponse,
@@ -126,8 +127,29 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
    * before the scoped Redux request flips to loading.
    */
   const [pendingEnrollmentLoader, setPendingEnrollmentLoader] = useState<string | null>(null);
-  const [pendingSeasonLoader, setPendingSeasonLoader] = useState<IsSeasonOption | null>(DEFAULT_IS_SEASON);
+  const [pendingYearLoader, setPendingYearLoader] = useState<IsYearOption | null>(DEFAULT_IS_YEAR);
+  /** Single season row loader (season click). */
+  const [pendingSeasonLoader, setPendingSeasonLoader] = useState<IsSeasonOption | null>(null);
+  /**
+   * All season rows loading — first load / year change reseeds every season from
+   * `?year=&season=`. Season-only clicks use `pendingSeasonLoader` instead.
+   */
+  const [pendingSeasonListLoader, setPendingSeasonListLoader] = useState(true);
+  /**
+   * All Students refresh: reload unfiltered `/counts/filters/` and spin every
+   * enrollment + year row until it returns.
+   */
+  const [pendingGlobalCountsLoader, setPendingGlobalCountsLoader] = useState(false);
   const [pendingCohortLoader, setPendingCohortLoader] = useState<number | 'not-assigned' | null>(null);
+  /** Last year row count refreshed from a year-scoped `/counts/filters/?year=…` response. */
+  const patchedYearCountRef = useRef<{ year: IsYearOption; count: number } | null>(null);
+  /** Per-season counts last refreshed from `?year=…&season=summer|winter|not_assigned`. */
+  const patchedSeasonCountsRef = useRef<Partial<Record<IsSeasonOption, number>>>({});
+  /**
+   * After a year change, ignore in-memory scoped counts until the new
+   * `/counts/filters/?year=…` request completes — otherwise seasons keep the old year.
+   */
+  const allowScopedSeasonApplyRef = useRef(false);
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -240,18 +262,18 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     || yearSeasonScopedCountsRef.current?.per_residency,
   );
 
-  /** Never overwrite season counts from enrollment or cohort-scoped responses. */
-  const seasonCountData = enrollmentKey != null
-    ? filterCounts
-    : (yearSeasonBaseCounts ?? filterCounts);
-
   const scopedLoading = Boolean(isScopedCountsScope && scopedFilterCountsLoading);
 
   /** Enrollment list counts stay on unfiltered `/counts/filters/`; selected row can refresh from scoped. */
   const enrollmentCountsReady = filterCounts != null;
-  /** First page load: spin all enrollment / year rows until global counts arrive. */
-  const enrollmentListLoading = Boolean(filterCounts == null || filterCountsLoading);
-  const initialYearCountsLoading = Boolean(filterCounts == null || filterCountsLoading);
+  /** First load / All Students: spin every enrollment row until global counts arrive. */
+  const enrollmentListLoading = Boolean(
+    filterCounts == null || filterCountsLoading || pendingGlobalCountsLoader,
+  );
+  /** First load / All Students: spin every year row until global counts arrive. */
+  const initialYearCountsLoading = Boolean(
+    filterCounts == null || filterCountsLoading || pendingGlobalCountsLoader,
+  );
 
   const yearSeasonCountsReady = Boolean(
     enrollmentKey != null
@@ -261,13 +283,18 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
         : (filterCounts?.per_season != null || filterCounts != null),
   );
   /**
-   * Season list loaders only for year/season scope — not enrollment or cohort clicks.
+   * All season rows: first load / year change (reseeds every season).
+   * Single season row: season click via `loadingSeason`.
    */
   const seasonListLoading = Boolean(
-    !yearSeasonCountsReady
-    && enrollmentKey == null
-    && selectedCohort == null
-    && selectedYear != null,
+    pendingSeasonListLoader
+    || (
+      !yearSeasonCountsReady
+      && enrollmentKey == null
+      && selectedCohort == null
+      && selectedYear != null
+      && selectedSeason == null
+    ),
   );
 
   // Clear pending row loaders only after a scoped request finishes (not on initial idle).
@@ -275,6 +302,8 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   useEffect(() => {
     if (scopedFilterCountsLoading) {
       wasScopedLoadingRef.current = true;
+      // New scoped request started — safe to apply its result to season rows.
+      allowScopedSeasonApplyRef.current = true;
       return;
     }
     if (!wasScopedLoadingRef.current) {
@@ -282,36 +311,85 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     }
     wasScopedLoadingRef.current = false;
     setPendingEnrollmentLoader(null);
+    setPendingYearLoader(null);
     setPendingSeasonLoader(null);
+    setPendingSeasonListLoader(false);
     setPendingCohortLoader(null);
   }, [scopedFilterCountsLoading]);
 
-  /** Per-row loaders — pending (immediate) or in-flight scoped request (never year). */
-  const loadingEnrollmentKey = pendingEnrollmentLoader
-    ?? ((scopedLoading && enrollmentKey) ? enrollmentKey : null);
-  const loadingSeason = (
-    enrollmentKey != null
+  // Clear All Students / global count loaders after unfiltered `/counts/filters/` finishes.
+  const wasFilterCountsLoadingRef = useRef(false);
+  useEffect(() => {
+    if (filterCountsLoading) {
+      wasFilterCountsLoadingRef.current = true;
+      return;
+    }
+    if (!wasFilterCountsLoadingRef.current) {
+      return;
+    }
+    wasFilterCountsLoadingRef.current = false;
+    setPendingGlobalCountsLoader(false);
+  }, [filterCountsLoading]);
+
+  /**
+   * Non–All Students enrollment with empty API filters should not leave a stuck row loader.
+   */
+  useEffect(() => {
+    if (!pendingEnrollmentLoader) {
+      return;
+    }
+    if (isAllStudentsSidebarKey(enrollmentKey) || !isScopedCountsScope) {
+      setPendingEnrollmentLoader(null);
+    }
+  }, [enrollmentKey, isScopedCountsScope, pendingEnrollmentLoader]);
+
+  /** Per-row loaders — pending (immediate) or in-flight scoped request. */
+  const loadingEnrollmentKey = (
+    isAllStudentsSidebarKey(enrollmentKey) || pendingGlobalCountsLoader
       ? null
-      : (pendingSeasonLoader ?? ((scopedLoading && selectedSeason) ? selectedSeason : null))
+      : (pendingEnrollmentLoader
+        ?? ((scopedLoading && enrollmentKey) ? enrollmentKey : null))
+  );
+  /** Year row loader when `/counts/filters/?year=…` is in flight for that year. */
+  const loadingYear = (
+    enrollmentKey != null || pendingGlobalCountsLoader
+      ? null
+      : (pendingYearLoader
+        ?? ((scopedLoading && selectedYear != null && lastSidebarCountScopeRef.current === 'year')
+          ? selectedYear
+          : null))
+  );
+  const loadingSeason = (
+    enrollmentKey != null || selectedCohort != null || pendingSeasonListLoader
+      ? null
+      : (pendingSeasonLoader
+        ?? ((scopedLoading && selectedSeason != null && sidebarFilters.season != null)
+          ? selectedSeason
+          : null))
   );
   const loadingCohort = (
     enrollmentKey != null
       ? null
       : (pendingCohortLoader ?? ((scopedLoading && selectedCohort != null) ? selectedCohort : null))
   );
-  /** First load / season change: spin all cohort rows until scoped counts arrive. */
+  /** Season / year change: spin every cohort row until the new scoped counts arrive. */
   const cohortListLoading = Boolean(
     enrollmentKey == null
     && !loadingCohort
-    && !cohortCountsReady
-    && (pendingSeasonLoader != null || scopedLoading)
     && selectedSeason != null
-    && selectedSeason !== 'not-assigned',
+    && selectedSeason !== 'not-assigned'
+    && (
+      pendingSeasonLoader != null
+      || pendingSeasonListLoader
+      || (scopedLoading && lastSidebarCountScopeRef.current === 'season')
+      || (scopedLoading && !cohortCountsReady)
+    ),
   );
 
   const studentFilters = useMemo(() => {
     const base = buildStudentFilters(sidebarCounts);
-    if (!enrollmentKey || !scopedFilterCounts) {
+    // All Students / empty scope: keep global filterCounts — do not apply stale year/season scoped totals.
+    if (!enrollmentKey || isAllStudentsSidebarKey(enrollmentKey) || !scopedFilterCounts) {
       return base;
     }
     return base.map((item) => {
@@ -320,9 +398,7 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
         return item;
       }
       let count = item.count;
-      if (item.label === 'All Students') {
-        count = scopedFilterCounts.all;
-      } else if (item.label === 'Innovation School') {
+      if (item.label === 'Innovation School') {
         count = scopedFilterCounts.is_innovation_school;
       } else if (item.label === 'IS Fellowship') {
         count = scopedFilterCounts.is_ngo_student;
@@ -356,15 +432,114 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     [cohortCountData, residencies, selectedSeason, selectedYear],
   );
 
-  const yearCounts = useMemo(
-    () => buildYearCountsFromApi(filterCounts),
-    [filterCounts],
-  );
+  const yearCounts = useMemo(() => {
+    const base = buildYearCountsFromApi(filterCounts);
+    if (enrollmentKey != null || selectedYear == null) {
+      patchedYearCountRef.current = null;
+      return base;
+    }
 
-  const seasonCounts = useMemo(
-    () => buildSeasonCountsFromApi(seasonCountData),
-    [seasonCountData],
-  );
+    const next = { ...base };
+    if (patchedYearCountRef.current?.year === selectedYear) {
+      next[selectedYear] = patchedYearCountRef.current.count;
+    }
+
+    // Refresh the selected year from year-scoped `/counts/filters/?year=…` (not season/cohort-only).
+    if (scopedFilterCounts && lastSidebarCountScopeRef.current === 'year') {
+      const count = selectedYear === 'not-assigned'
+        ? (scopedFilterCounts.per_year?.unassigned
+          ?? scopedFilterCounts.residency_not_assigned
+          ?? scopedFilterCounts.all)
+        : (scopedFilterCounts.per_year?.[selectedYear] ?? scopedFilterCounts.all);
+      patchedYearCountRef.current = { year: selectedYear, count };
+      next[selectedYear] = count;
+    }
+
+    return next;
+  }, [enrollmentKey, filterCounts, scopedFilterCounts, selectedYear]);
+
+  const seasonCounts = useMemo(() => {
+    const globalBase = buildSeasonCountsFromApi(filterCounts);
+    if (enrollmentKey != null) {
+      patchedSeasonCountsRef.current = {};
+      allowScopedSeasonApplyRef.current = false;
+      return globalBase;
+    }
+
+    const next = { ...globalBase };
+    (Object.keys(patchedSeasonCountsRef.current) as IsSeasonOption[]).forEach((season) => {
+      const patched = patchedSeasonCountsRef.current[season];
+      if (patched != null) {
+        next[season] = patched;
+      }
+    });
+
+    if (selectedCohort != null) {
+      return next;
+    }
+
+    // Wait for the in-flight year/season scoped response (do not reuse previous year's counts).
+    if (!scopedFilterCounts || scopedFilterCountsLoading || !allowScopedSeasonApplyRef.current) {
+      return next;
+    }
+
+    /**
+     * Year-only `?year=2026` (no season): reseed every season from `per_season`.
+     * Year + season / season click: seed all on year change; otherwise patch selected only.
+     */
+    const yearOnlyScope = sidebarFilters.year != null && sidebarFilters.season == null;
+
+    if (yearOnlyScope) {
+      const fromScoped = buildSeasonCountsFromApi(scopedFilterCounts);
+      patchedSeasonCountsRef.current = {
+        summer: fromScoped.summer,
+        winter: fromScoped.winter,
+        'not-assigned': fromScoped['not-assigned'],
+      };
+      return fromScoped;
+    }
+
+    if (selectedSeason == null || sidebarFilters.season == null) {
+      return next;
+    }
+
+    const selectedCount = selectedSeason === 'not-assigned'
+      ? (scopedFilterCounts.per_season?.unassigned ?? scopedFilterCounts.all)
+      : (scopedFilterCounts.per_season?.[selectedSeason] ?? scopedFilterCounts.all);
+
+    const seedAllSeasons = pendingSeasonListLoader
+      || lastSidebarCountScopeRef.current === 'year'
+      || Object.keys(patchedSeasonCountsRef.current).length === 0;
+
+    if (seedAllSeasons) {
+      const fromScoped = buildSeasonCountsFromApi(scopedFilterCounts);
+      fromScoped[selectedSeason] = selectedCount;
+      patchedSeasonCountsRef.current = {
+        summer: fromScoped.summer,
+        winter: fromScoped.winter,
+        'not-assigned': fromScoped['not-assigned'],
+      };
+      return fromScoped;
+    }
+
+    patchedSeasonCountsRef.current = {
+      ...patchedSeasonCountsRef.current,
+      [selectedSeason]: selectedCount,
+    };
+    next[selectedSeason] = selectedCount;
+    return next;
+  }, [
+    enrollmentKey,
+    filterCounts,
+    pendingSeasonListLoader,
+    scopedFilterCounts,
+    scopedFilterCountsLoading,
+    selectedCohort,
+    selectedSeason,
+    selectedYear,
+    sidebarFilters.season,
+    sidebarFilters.year,
+  ]);
 
   /** Sidebar + search scope for top chip `/counts/filters` calls (no readiness). */
   const topCountScopeFilters = useMemo(() => {
@@ -382,8 +557,9 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
 
   const readinessCounts = useMemo(() => {
     const globalTopCounts = filterCounts ? buildReadinessCounts(filterCounts) : null;
+    // Global / All Students: prefer unfiltered filterCounts — ignore stale year/season scoped chips.
     const partial = (isGlobalTopCountScope
-      ? (topFilterCounts ?? globalTopCounts)
+      ? (globalTopCounts ?? topFilterCounts)
       : topFilterCounts) ?? {
       all: 0,
       notReady: 0,
@@ -397,7 +573,7 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
       return {
         all: searchActive
           ? (pagination.count ?? 0)
-          : (partial.all || filterCounts?.all || sidebarScopedStudentTotal || pagination.count || 0),
+          : (filterCounts?.all ?? partial.all ?? 0),
         notReady: partial.notReady,
         ready: partial.ready,
         inactive: partial.inactive,
@@ -572,9 +748,24 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
 
   const selectEnrollment = (nextFilterKey: string) => {
     lastSidebarCountScopeRef.current = 'enrollment';
-    setPendingEnrollmentLoader(nextFilterKey);
+    setPendingYearLoader(null);
     setPendingSeasonLoader(null);
+    setPendingSeasonListLoader(false);
     setPendingCohortLoader(null);
+    patchedYearCountRef.current = null;
+    patchedSeasonCountsRef.current = {};
+    allowScopedSeasonApplyRef.current = false;
+
+    if (isAllStudentsSidebarKey(nextFilterKey)) {
+      // Unfiltered `/counts/filters/` — refresh every enrollment + year count.
+      setPendingEnrollmentLoader(null);
+      setPendingGlobalCountsLoader(true);
+      dispatch(fetchFilterCounts());
+    } else {
+      setPendingGlobalCountsLoader(false);
+      setPendingEnrollmentLoader(nextFilterKey);
+    }
+
     setEnrollmentKey(nextFilterKey);
     setSelectedYear(null);
     setSelectedSeason(null);
@@ -587,8 +778,15 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   const selectYear = (year: IsYearOption) => {
     lastSidebarCountScopeRef.current = 'year';
     setPendingEnrollmentLoader(null);
-    setPendingSeasonLoader(year === 'not-assigned' ? null : (selectedSeason ?? DEFAULT_IS_SEASON));
+    setPendingGlobalCountsLoader(false);
+    setPendingYearLoader(year);
+    setPendingSeasonLoader(null);
+    // Year change reseeds all seasons from `?year=&season=` — loader on every season row.
+    setPendingSeasonListLoader(year !== 'not-assigned');
     setPendingCohortLoader(null);
+    // Drop prior year season totals; wait for the new scoped response.
+    patchedSeasonCountsRef.current = {};
+    allowScopedSeasonApplyRef.current = false;
     setEnrollmentKey(null);
     setSelectedYear(year);
     if (year === 'not-assigned') {
@@ -606,6 +804,9 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   const selectSeason = (season: IsSeasonOption) => {
     lastSidebarCountScopeRef.current = 'season';
     setPendingEnrollmentLoader(null);
+    setPendingGlobalCountsLoader(false);
+    setPendingYearLoader(null);
+    setPendingSeasonListLoader(false);
     setPendingSeasonLoader(season);
     setPendingCohortLoader(null);
     setEnrollmentKey(null);
@@ -619,7 +820,9 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   const selectCohort = (cohort: number | 'not-assigned') => {
     lastSidebarCountScopeRef.current = 'cohort';
     setPendingEnrollmentLoader(null);
+    setPendingYearLoader(null);
     setPendingSeasonLoader(null);
+    setPendingSeasonListLoader(false);
     setPendingCohortLoader(cohort);
     setEnrollmentKey(null);
     setSelectedCohort(cohort);
@@ -629,10 +832,15 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   };
 
   const clearSeason = () => {
-    lastSidebarCountScopeRef.current = 'season';
+    // Clearing season → `?year=…` — refresh year row and all season counts from per_season.
+    lastSidebarCountScopeRef.current = selectedYear != null ? 'year' : 'season';
     setPendingEnrollmentLoader(null);
+    setPendingYearLoader(selectedYear);
     setPendingSeasonLoader(null);
+    setPendingSeasonListLoader(selectedYear != null && selectedYear !== 'not-assigned');
     setPendingCohortLoader(null);
+    patchedSeasonCountsRef.current = {};
+    allowScopedSeasonApplyRef.current = false;
     setEnrollmentKey(null);
     setSelectedSeason(null);
     setSelectedCohort(null);
@@ -644,7 +852,9 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   const clearCohort = () => {
     lastSidebarCountScopeRef.current = 'cohort';
     setPendingEnrollmentLoader(null);
+    setPendingYearLoader(null);
     setPendingSeasonLoader(null);
+    setPendingSeasonListLoader(false);
     setPendingCohortLoader(null);
     setEnrollmentKey(null);
     setSelectedCohort(null);
@@ -716,6 +926,7 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
           cohortCountsReady={cohortCountsReady}
           cohortListLoading={cohortListLoading}
           loadingEnrollmentKey={loadingEnrollmentKey}
+          loadingYear={loadingYear}
           loadingSeason={loadingSeason}
           loadingCohort={loadingCohort}
         />
