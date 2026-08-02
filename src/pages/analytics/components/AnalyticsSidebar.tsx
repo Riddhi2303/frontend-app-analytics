@@ -81,7 +81,7 @@ type AnalyticsSidebarProps = {
   enrollmentCountsReady?: boolean;
   /** First load: show loaders on every enrollment row. */
   enrollmentListLoading?: boolean;
-  /** IS Year always uses global `/counts/filters` (not scoped). */
+  /** IS Year: global list on first load; selected year refreshes from scoped `?year=`. */
   yearCountsLoading?: boolean;
   yearCountsReady?: boolean;
   yearSeasonCountsReady?: boolean;
@@ -92,9 +92,10 @@ type AnalyticsSidebarProps = {
   cohortListLoading?: boolean;
   /**
    * Per-row scoped loaders — only the active filter option shows a spinner
-   * (enrollment / season / cohort). Year never uses these.
+   * (enrollment / year / season / cohort).
    */
   loadingEnrollmentKey?: string | null;
+  loadingYear?: IsYearOption | null;
   loadingSeason?: IsSeasonOption | null;
   loadingCohort?: number | 'not-assigned' | null;
 };
@@ -124,6 +125,7 @@ const AnalyticsSidebar = ({
   cohortCountsReady = false,
   cohortListLoading = false,
   loadingEnrollmentKey = null,
+  loadingYear = null,
   loadingSeason = null,
   loadingCohort = null,
 }: AnalyticsSidebarProps) => {
@@ -162,25 +164,28 @@ const AnalyticsSidebar = ({
 
       <h3 className="sidebar-section-title">IS Year</h3>
       <div className="filter-list">
-        {IS_YEAR_OPTIONS.map((year) => (
-          <label key={year} className="filter-row">
-            <RowLoadingIndicator loading={yearCountsLoading} />
-            <input
-              type="radio"
-              name={YEAR_RADIO}
-              className="filter-radio filter-radio--accent"
-              checked={selectedYear === year}
-              onChange={() => onSelectYear(year)}
-            />
-            <span className="filter-label">{yearLabel(year)}</span>
-            <FilterCount
-              count={yearCounts[year]}
-              loading={yearCountsLoading}
-              ready={yearCountsReady}
-              danger={year === 'not-assigned'}
-            />
-          </label>
-        ))}
+        {IS_YEAR_OPTIONS.map((year) => {
+          const rowLoading = yearCountsLoading || loadingYear === year;
+          return (
+            <label key={year} className="filter-row">
+              <RowLoadingIndicator loading={rowLoading} />
+              <input
+                type="radio"
+                name={YEAR_RADIO}
+                className="filter-radio filter-radio--accent"
+                checked={selectedYear === year}
+                onChange={() => onSelectYear(year)}
+              />
+              <span className="filter-label">{yearLabel(year)}</span>
+              <FilterCount
+                count={yearCounts[year]}
+                loading={rowLoading}
+                ready={rowLoading ? false : yearCountsReady}
+                danger={year === 'not-assigned'}
+              />
+            </label>
+          );
+        })}
       </div>
 
       <div className="sidebar-section-heading">
@@ -193,7 +198,7 @@ const AnalyticsSidebar = ({
       </div>
       <div className={`filter-list ${seasonEnabled ? '' : 'filter-list--disabled'}`}>
         {IS_SEASON_OPTIONS.map((season) => {
-          const rowLoading = seasonListLoading || loadingSeason === season;
+          const rowLoading = seasonEnabled && (seasonListLoading || loadingSeason === season);
           return (
             <label
               key={season}
@@ -209,12 +214,14 @@ const AnalyticsSidebar = ({
                 onChange={() => onSelectSeason(season)}
               />
               <span className="filter-label">{seasonLabel(season)}</span>
-              <FilterCount
-                count={seasonCounts[season]}
-                loading={rowLoading}
-                ready={rowLoading ? false : yearSeasonCountsReady}
-                danger={season === 'not-assigned'}
-              />
+              {seasonEnabled ? (
+                <FilterCount
+                  count={seasonCounts[season]}
+                  loading={rowLoading}
+                  ready={rowLoading ? false : yearSeasonCountsReady}
+                  danger={season === 'not-assigned'}
+                />
+              ) : null}
             </label>
           );
         })}

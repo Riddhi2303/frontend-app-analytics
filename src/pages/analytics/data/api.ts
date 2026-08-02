@@ -170,7 +170,8 @@ export const stripReadinessApiFilter = (filters: ApiFilters): ApiFilters => {
   return next;
 };
 
-const isAllStudentsSidebarKey = (enrollmentKey: string | null) =>
+/** All Students has no API enrollment flags — uses global (unfiltered) counts. */
+export const isAllStudentsSidebarKey = (enrollmentKey: string | null) =>
   enrollmentKey === DEFAULT_SIDEBAR_FILTER_KEY
   || enrollmentKey === SIDEBAR_FILTER_KEY.student('All Students');
 
