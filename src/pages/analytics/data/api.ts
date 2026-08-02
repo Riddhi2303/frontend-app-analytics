@@ -54,7 +54,8 @@ export type SidebarFilterSelection = {
   /** Enrollment Type radio — mutually exclusive with IS year/season/cohort. */
   enrollmentKey: SidebarEnrollmentKey;
   isSelection: SidebarIsSelection;
-  matchingResidencyIds: number[];
+  /** @deprecated Unused — year/season filters are sent without residency_ids. */
+  matchingResidencyIds?: number[];
 };
 
 /** Normalize cohort/residency ids: positive integers, unique, sorted. */
@@ -79,7 +80,6 @@ export const normalizeResidencyIds = (input: unknown): number[] | undefined => {
 export const buildSidebarApiFilters = ({
   enrollmentKey,
   isSelection,
-  matchingResidencyIds,
 }: SidebarFilterSelection): ApiFilters => {
   const filters: ApiFilters = {};
 
@@ -136,12 +136,7 @@ export const buildSidebarApiFilters = ({
     filters.season = season;
   }
 
-  if (matchingResidencyIds.length === 1) {
-    filters.residency = matchingResidencyIds[0];
-  } else if (matchingResidencyIds.length > 1) {
-    filters.residency_ids = matchingResidencyIds;
-  }
-
+  // Year/season alone is enough — do not expand to residency_ids.
   return filters;
 };
 
