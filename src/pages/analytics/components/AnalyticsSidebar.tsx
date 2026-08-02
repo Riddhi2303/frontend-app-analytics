@@ -79,6 +79,9 @@ type AnalyticsSidebarProps = {
   onClearCohort: () => void;
   enrollmentCountsLoading?: boolean;
   enrollmentCountsReady?: boolean;
+  /** IS Year always uses global `/counts/filters` (not scoped). */
+  yearCountsLoading?: boolean;
+  yearCountsReady?: boolean;
   yearSeasonCountsLoading?: boolean;
   yearSeasonCountsReady?: boolean;
   cohortCountsLoading?: boolean;
@@ -103,6 +106,8 @@ const AnalyticsSidebar = ({
   onClearCohort,
   enrollmentCountsLoading = false,
   enrollmentCountsReady = false,
+  yearCountsLoading = false,
+  yearCountsReady = false,
   yearSeasonCountsLoading = false,
   yearSeasonCountsReady = false,
   cohortCountsLoading = false,
@@ -144,7 +149,7 @@ const AnalyticsSidebar = ({
       <div className="filter-list">
         {IS_YEAR_OPTIONS.map((year) => (
           <label key={year} className="filter-row">
-            <RowLoadingIndicator loading={enrollmentCountsLoading} />
+            <RowLoadingIndicator loading={yearCountsLoading} />
             <input
               type="radio"
               name={YEAR_RADIO}
@@ -155,8 +160,8 @@ const AnalyticsSidebar = ({
             <span className="filter-label">{yearLabel(year)}</span>
             <FilterCount
               count={yearCounts[year]}
-              loading={enrollmentCountsLoading}
-              ready={enrollmentCountsReady}
+              loading={yearCountsLoading}
+              ready={yearCountsReady}
               danger={year === 'not-assigned'}
             />
           </label>
