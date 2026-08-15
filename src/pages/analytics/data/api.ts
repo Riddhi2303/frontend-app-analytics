@@ -302,16 +302,13 @@ export async function fetchStudentsAnalyticsApi({
 }
 
 /**
- * Residency list for cohort sidebar IDs (same client pattern as student analytics).
- * Supports both a bare array and `{ results, available_years }`.
+ * Residency list for cohort sidebar IDs/labels.
+ * GET …/student-analytics/api/residencies/
  */
 export async function fetchResidenciesApi(): Promise<ApiResidency[]> {
   const url = getBaseUrl().replace(/\/students\/?$/, "/residencies/");
-
-  // const { data } = await getAuthenticatedHttpClient().get(url);
-  // return Array.isArray(data) ? data : (data.results ?? []);
-
   const { data } = await axios.get(url);
+
   if (Array.isArray(data)) {
     return data as ApiResidency[];
   }
@@ -367,18 +364,15 @@ export async function fetchEnrollmentFilterCountsApi(): Promise<
 }
 
 /**
- * Left sidebar cohort counts (`per_residency`, ready totals).
- * GET …/student-analytics/api/counts/residencies/
+ * Left sidebar cohort counts.
+ * GET …/student-analytics/api/counts/residencies/?year=2026&season=winter
  */
-export async function fetchResidencyCountsApi(): Promise<
-  ApiStudentAnalyticsResponse["counts"]
-> {
+export async function fetchResidencyCountsApi(
+  filters: ApiFilters = {},
+): Promise<ApiStudentAnalyticsResponse["counts"]> {
   const url = resolveSiblingApiUrl("counts/residencies/");
-
-  // const { data } = await getAuthenticatedHttpClient().get(url);
-  // return normalizeCountsPayload(data);
-
-  const { data } = await axios.get(url);
+  const params = buildFilterParams(filters);
+  const { data } = await axios.get(url, { params });
   return normalizeCountsPayload(data);
 }
 

@@ -163,13 +163,16 @@ export const fetchFilterCounts = () => async (dispatch: AppDispatch) => dedupeIn
   },
 );
 
-/** Left sidebar cohort counts (`/counts/residencies/`). */
-export const fetchResidencyCounts = () => async (dispatch: AppDispatch) => dedupeInflight(
-  'residency-counts',
-  async () => {
+/** Left sidebar cohort counts (`/counts/residencies/?year=&season=`). */
+export const fetchResidencyCounts = (filters: ApiFilters = {}) => async (
+  dispatch: AppDispatch,
+) => {
+  const scopeKey = serializeApiFilters(filters);
+
+  return dedupeInflight(`residency-counts:${scopeKey}`, async () => {
     dispatch({ type: FETCH_RESIDENCY_COUNTS_REQUEST });
     try {
-      const counts = await fetchResidencyCountsApi();
+      const counts = await fetchResidencyCountsApi(filters);
       dispatch({
         type: FETCH_RESIDENCY_COUNTS_SUCCESS,
         payload: counts,
@@ -181,8 +184,8 @@ export const fetchResidencyCounts = () => async (dispatch: AppDispatch) => dedup
         payload: message,
       });
     }
-  },
-);
+  });
+};
 
 export const fetchResidencies = () => async (dispatch: AppDispatch) => dedupeInflight(
   'residencies',
