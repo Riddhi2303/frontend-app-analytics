@@ -46,6 +46,14 @@ export type ApiResidency = {
   start_date: string;
   end_date: string;
   season?: ApiResidencySeason | null;
+  student_count?: number;
+  students_count?: number;
+  total_students?: number;
+  total?: number;
+  count?: number;
+  ready_count?: number;
+  ready_students?: number;
+  ready?: number;
 };
 
 export type ApiResidenciesResponse = {
@@ -700,6 +708,53 @@ const lookupResidencyCount = (
   ?? 0
 );
 
+const numericCount = (value: unknown): number | undefined => {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) {
+      return parsed;
+    }
+  }
+  return undefined;
+};
+
+/** Total students on a `/residencies/` row (field names vary by API). */
+export const residencySidebarTotal = (residency: ApiResidency): number => (
+  numericCount(residency.student_count)
+  ?? numericCount(residency.students_count)
+  ?? numericCount(residency.total_students)
+  ?? numericCount(residency.total)
+  ?? numericCount(residency.count)
+  ?? 0
+);
+
+/** Ready students on a `/residencies/` row. */
+export const residencySidebarReady = (residency: ApiResidency): number => (
+  numericCount(residency.ready_count)
+  ?? numericCount(residency.ready_students)
+  ?? numericCount(residency.ready)
+  ?? 0
+);
+
+export const buildCountsFromResidencies = (
+  residencies: ApiResidency[],
+): Pick<ApiStudentAnalyticsResponse['counts'], 'per_residency' | 'per_residency_ready'> => {
+  const perResidency: Record<string, number> = {};
+  const readyByResidency: Record<string, number> = {};
+  residencies.forEach((residency) => {
+    const total = residencySidebarTotal(residency);
+    const ready = residencySidebarReady(residency);
+    perResidency[residency.name] = total;
+    perResidency[String(residency.id)] = total;
+    readyByResidency[residency.name] = ready;
+    readyByResidency[String(residency.id)] = ready;
+  });
+  return { per_residency: perResidency, per_residency_ready: readyByResidency };
+};
+
 /** Sidebar IS Year counts from API `counts.per_year` (`unassigned` → Not Assigned). */
 export const buildYearCountsFromApi = (
   counts: ApiStudentAnalyticsResponse['counts'] | null,
@@ -724,7 +779,7 @@ export const buildSeasonCountsFromApi = (
   };
 };
 
-/** Cohort sidebar from residencies API — visible as soon as residencies load; counts from facet API. */
+/** Cohort sidebar from `/residencies/` (filtered by year/season); counts from that response. */
 export const buildCohortFiltersFromResidencies = (
   residencies: ApiResidency[],
   counts: ApiStudentAnalyticsResponse['counts'] | null,
@@ -745,14 +800,22 @@ export const buildCohortFiltersFromResidencies = (
     results.length > 0 ? countReadyStudentsByResidency(results) : {}
   );
 
-  return scoped.map((residency) => ({
-    id: residency.id,
-    label: formatCohortSidebarLabel(residency),
-    schedule: formatResidencySchedule(residency.start_date, residency.end_date),
-    total: lookupResidencyCount(perResidency, residency),
-    ready: lookupResidencyCount(readyByResidency, residency),
-    checked: false,
-  }));
+  return scoped.map((residency) => {
+    const hasMappedTotal = residency.name in perResidency || String(residency.id) in perResidency;
+    const hasMappedReady = residency.name in readyByResidency || String(residency.id) in readyByResidency;
+    return {
+      id: residency.id,
+      label: formatCohortSidebarLabel(residency),
+      schedule: formatResidencySchedule(residency.start_date, residency.end_date),
+      total: hasMappedTotal
+        ? lookupResidencyCount(perResidency, residency)
+        : residencySidebarTotal(residency),
+      ready: hasMappedReady
+        ? lookupResidencyCount(readyByResidency, residency)
+        : residencySidebarReady(residency),
+      checked: false,
+    };
+  });
 };
 
 export const buildReadinessCounts = (counts: ApiStudentAnalyticsResponse['counts']) => ({

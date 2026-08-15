@@ -10,6 +10,7 @@ import {
   applyReadinessApiFilter,
   buildSidebarApiFilters,
   canAssignResidency,
+  fetchResidencyCountsApi,
   fetchScopedCountsApi,
   hasSidebarApiFilters,
   isAllStudentsSidebarKey,
@@ -84,6 +85,9 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     (state: RootState) => state.analyticsReducer.filterCountsLoading,
   );
   const residencyCounts = useSelector((state: RootState) => state.analyticsReducer.residencyCounts);
+  const residencyCountsLoading = useSelector(
+    (state: RootState) => state.analyticsReducer.residencyCountsLoading,
+  );
   const scopedFilterCounts = useSelector(
     (state: RootState) => state.analyticsReducer.scopedFilterCounts,
   );
@@ -142,8 +146,13 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
    */
   const [pendingGlobalCountsLoader, setPendingGlobalCountsLoader] = useState(false);
   const [pendingCohortLoader, setPendingCohortLoader] = useState<number | 'not-assigned' | null>(null);
-  /** Clear cohort / season change / first load: spin every cohort row while year+season counts reload. */
+  /** Clear cohort / season change / first load: spin every cohort row while `/residencies/` reloads. */
   const [pendingCohortListLoader, setPendingCohortListLoader] = useState(true);
+  const [selectedCohortResidencyCounts, setSelectedCohortResidencyCounts] = useState<{
+    id: number;
+    total: number;
+    ready: number;
+  } | null>(null);
   /**
    * First-load season totals from `/counts/filters/?year=2026` (not the year+season scoped call).
    */
@@ -245,66 +254,34 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   );
 
   const cohortCountData = useMemo(() => {
-    const fallback = residencyCounts ?? apiCounts;
-    if (enrollmentKey != null) {
-      return fallback;
-    }
-    if (selectedYear == null && selectedSeason == null) {
-      return fallback;
-    }
-
-    const base = yearSeasonBaseCounts ?? fallback;
+    const base = residencyCounts ?? apiCounts;
     if (
-      selectedCohort == null
-      || selectedCohort === 'not-assigned'
-      || !scopedFilterCounts
+      selectedCohortResidencyCounts == null
       || !base
     ) {
       return base;
     }
 
-    const residency = residencies.find((item) => item.id === selectedCohort);
-    if (!residency) {
-      return base;
-    }
-
-    const total = scopedFilterCounts.per_residency?.[residency.name]
-      ?? scopedFilterCounts.per_residency?.[String(residency.id)]
-      ?? scopedFilterCounts.residency_assigned
-      ?? scopedFilterCounts.all;
-    const ready = scopedFilterCounts.per_residency_ready?.[residency.name]
-      ?? scopedFilterCounts.per_residency_ready?.[String(residency.id)]
-      ?? scopedFilterCounts.ready_for_residency
-      ?? 0;
-
+    const residency = residencies.find((item) => item.id === selectedCohortResidencyCounts.id);
+    const nameKey = residency?.name;
     return {
       ...base,
       per_residency: {
         ...(base.per_residency ?? {}),
-        [residency.name]: total,
-        [String(residency.id)]: total,
+        ...(nameKey ? { [nameKey]: selectedCohortResidencyCounts.total } : {}),
+        [String(selectedCohortResidencyCounts.id)]: selectedCohortResidencyCounts.total,
       },
       per_residency_ready: {
         ...(base.per_residency_ready ?? {}),
-        [residency.name]: ready,
-        [String(residency.id)]: ready,
+        ...(nameKey ? { [nameKey]: selectedCohortResidencyCounts.ready } : {}),
+        [String(selectedCohortResidencyCounts.id)]: selectedCohortResidencyCounts.ready,
       },
     };
-  }, [
-    apiCounts,
-    enrollmentKey,
-    residencies,
-    residencyCounts,
-    scopedFilterCounts,
-    selectedCohort,
-    selectedSeason,
-    selectedYear,
-    yearSeasonBaseCounts,
-  ]);
+  }, [apiCounts, residencies, residencyCounts, selectedCohortResidencyCounts]);
 
   const cohortCountsReady = Boolean(
-    cohortCountData?.per_residency
-    || yearSeasonScopedCountsRef.current?.per_residency,
+    residencies.length > 0
+    || cohortCountData?.per_residency,
   );
 
   const scopedLoading = Boolean(isScopedCountsScope && scopedFilterCountsLoading);
@@ -360,9 +337,23 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     setPendingYearLoader(null);
     setPendingSeasonLoader(null);
     setPendingSeasonListLoader(false);
-    setPendingCohortLoader(null);
-    setPendingCohortListLoader(false);
+    if (lastSidebarCountScopeRef.current === 'cohort') {
+      setPendingCohortLoader((current) => (current === 'not-assigned' ? null : current));
+    }
   }, [scopedFilterCountsLoading]);
+
+  const wasResidencyCountsLoadingRef = useRef(false);
+  useEffect(() => {
+    if (residencyCountsLoading) {
+      wasResidencyCountsLoadingRef.current = true;
+      return;
+    }
+    if (!wasResidencyCountsLoadingRef.current) {
+      return;
+    }
+    wasResidencyCountsLoadingRef.current = false;
+    setPendingCohortListLoader(false);
+  }, [residencyCountsLoading]);
 
   // Clear All Students / global count loaders after unfiltered `/counts/filters/` finishes.
   const wasFilterCountsLoadingRef = useRef(false);
@@ -417,21 +408,15 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   const loadingCohort = (
     enrollmentKey != null
       ? null
-      : (pendingCohortLoader ?? ((scopedLoading && selectedCohort != null) ? selectedCohort : null))
+      : pendingCohortLoader
   );
-  /** Season / year / clear-cohort: spin every cohort row until scoped counts arrive. */
+  /** Year / season / clear-cohort: spin every cohort row until `/residencies/` counts arrive. */
   const cohortListLoading = Boolean(
     enrollmentKey == null
     && !loadingCohort
     && selectedSeason != null
     && selectedSeason !== 'not-assigned'
-    && (
-      pendingCohortListLoader
-      || pendingSeasonLoader != null
-      || pendingSeasonListLoader
-      || (scopedLoading && lastSidebarCountScopeRef.current === 'season')
-      || (scopedLoading && !cohortCountsReady)
-    ),
+    && (pendingCohortListLoader || residencyCountsLoading),
   );
 
   const studentFilters = useMemo(() => {
@@ -748,8 +733,73 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   useEffect(() => {
     dispatch(fetchResidencies());
     dispatch(fetchFilterCounts());
-    dispatch(fetchResidencyCounts());
   }, [dispatch]);
+
+  /** Cohort counts from `/counts/residencies/?year=&season=` (same filters as `/counts/filters/`). */
+  const residencyCountFilters = useMemo(() => {
+    if (enrollmentKey != null) {
+      return null;
+    }
+    if (selectedYear !== '2026' && selectedYear !== '2027') {
+      return null;
+    }
+    if (selectedSeason !== 'summer' && selectedSeason !== 'winter') {
+      return null;
+    }
+    return {
+      year: Number(selectedYear),
+      season: selectedSeason,
+    };
+  }, [enrollmentKey, selectedSeason, selectedYear]);
+
+  const residencyCountFetchKey = residencyCountFilters
+    ? serializeApiFilters(residencyCountFilters)
+    : '';
+
+  useEffect(() => {
+    if (!residencyCountFilters) {
+      return;
+    }
+    dispatch(fetchResidencyCounts(residencyCountFilters));
+  }, [dispatch, residencyCountFetchKey, residencyCountFilters]);
+
+  /** Selected cohort: refresh that row from `/counts/residencies/?residency=`. */
+  useEffect(() => {
+    if (typeof selectedCohort !== 'number') {
+      setSelectedCohortResidencyCounts(null);
+      if (selectedCohort == null) {
+        setPendingCohortLoader(null);
+      }
+      return undefined;
+    }
+
+    const residency = residencies.find((item) => item.id === selectedCohort);
+    let cancelled = false;
+    fetchResidencyCountsApi({ residency: selectedCohort }).then((counts) => {
+      if (cancelled) {
+        return;
+      }
+      const total = (residency && counts.per_residency?.[residency.name])
+        ?? counts.per_residency?.[String(selectedCohort)]
+        ?? counts.residency_assigned
+        ?? counts.all
+        ?? 0;
+      const ready = (residency && counts.per_residency_ready?.[residency.name])
+        ?? counts.per_residency_ready?.[String(selectedCohort)]
+        ?? counts.ready_for_residency
+        ?? 0;
+      setSelectedCohortResidencyCounts({ id: selectedCohort, total, ready });
+      setPendingCohortLoader(null);
+    }).catch(() => {
+      if (!cancelled) {
+        setPendingCohortLoader(null);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [residencies, selectedCohort]);
 
   useEffect(() => {
     if (isGlobalTopCountScope) {
@@ -814,8 +864,14 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     }
   }, [cohortFilters, selectedCohort]);
 
+  const clearSidebarSearch = () => {
+    setSearchValue('');
+    setDebouncedSearch('');
+  };
+
   const selectEnrollment = (nextFilterKey: string) => {
     lastSidebarCountScopeRef.current = 'enrollment';
+    clearSidebarSearch();
     setPendingYearLoader(null);
     setPendingSeasonLoader(null);
     setPendingSeasonListLoader(false);
@@ -846,6 +902,7 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
 
   const selectYear = (year: IsYearOption) => {
     lastSidebarCountScopeRef.current = 'year';
+    clearSidebarSearch();
     setPendingEnrollmentLoader(null);
     setPendingGlobalCountsLoader(false);
     setPendingYearLoader(year);
@@ -877,6 +934,7 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
 
   const selectSeason = (season: IsSeasonOption) => {
     lastSidebarCountScopeRef.current = 'season';
+    clearSidebarSearch();
     setPendingEnrollmentLoader(null);
     setPendingGlobalCountsLoader(false);
     setPendingYearLoader(null);
@@ -894,6 +952,7 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
 
   const selectCohort = (cohort: number | 'not-assigned') => {
     lastSidebarCountScopeRef.current = 'cohort';
+    clearSidebarSearch();
     setPendingEnrollmentLoader(null);
     setPendingYearLoader(null);
     setPendingSeasonLoader(null);
@@ -910,6 +969,7 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   const clearSeason = () => {
     // Clearing season → `?year=…` — refresh year row and all season counts from per_season.
     lastSidebarCountScopeRef.current = selectedYear != null ? 'year' : 'season';
+    clearSidebarSearch();
     setPendingEnrollmentLoader(null);
     setPendingYearLoader(selectedYear);
     setPendingSeasonLoader(null);
@@ -927,8 +987,9 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   };
 
   const clearCohort = () => {
-    // Back to year+season `?year=&season=` — reload every cohort count.
+    // Back to year+season `?year=&season=` — reload every cohort count from `/residencies/`.
     lastSidebarCountScopeRef.current = 'season';
+    clearSidebarSearch();
     setPendingEnrollmentLoader(null);
     setPendingGlobalCountsLoader(false);
     setPendingYearLoader(null);
@@ -961,7 +1022,9 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
 
     dispatch(setApiFilters(activeFilters));
     dispatch(fetchFilterCounts());
-    dispatch(fetchResidencyCounts());
+    if (residencyCountFilters) {
+      dispatch(fetchResidencyCounts(residencyCountFilters));
+    }
     const scopeFilters = q ? { ...sidebarFilters, search: q } : sidebarFilters;
     if (serializeApiFilters(scopeFilters) !== '{}') {
       dispatch(fetchTopFilterCounts(scopeFilters));
@@ -974,6 +1037,7 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   }, [
     currentPage,
     dispatch,
+    residencyCountFilters,
     searchValue,
     selectedReadiness,
     sidebarFilters,
