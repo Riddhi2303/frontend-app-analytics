@@ -51,7 +51,15 @@ const CALL_STATUS_LABELS: Record<string, string> = {
   good_to_proceed: 'Good to Proceed',
   scheduled: 'Scheduled',
   completed: 'Completed',
+  not_booked: 'Not Booked',
+  'not booked': 'Not Booked',
 };
+
+const toTitleCase = (value: string) => value
+  .split(/\s+/)
+  .filter(Boolean)
+  .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+  .join(' ');
 
 const callStatusClass = (status: string) => {
   const normalized = status.toLowerCase();
@@ -64,9 +72,12 @@ const callStatusClass = (status: string) => {
   return 'call-status--neutral';
 };
 
-const callStatusLabel = (status: string) => (
-  CALL_STATUS_LABELS[status.toLowerCase()] ?? status.replace(/_/g, ' ')
-);
+const callStatusLabel = (status: string) => {
+  const normalized = status.toLowerCase().replace(/_/g, ' ').trim();
+  return CALL_STATUS_LABELS[status.toLowerCase()]
+    ?? CALL_STATUS_LABELS[normalized]
+    ?? toTitleCase(normalized);
+};
 
 type CourseDetailState = {
   assignments: ApiPracticeAssignment[];
