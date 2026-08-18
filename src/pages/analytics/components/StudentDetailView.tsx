@@ -62,12 +62,15 @@ const toTitleCase = (value: string) => value
   .join(' ');
 
 const callStatusClass = (status: string) => {
-  const normalized = status.toLowerCase();
+  const normalized = status.toLowerCase().replace(/_/g, ' ').trim();
   if (normalized === 'scheduled') {
     return 'call-status--scheduled';
   }
-  if (normalized === 'reschedule_needed' || normalized === 'good_to_proceed' || normalized === 'completed') {
+  if (normalized === 'reschedule needed' || normalized === 'good to proceed' || normalized === 'completed') {
     return 'call-status--positive';
+  }
+  if (normalized === 'not booked') {
+    return 'call-status--muted';
   }
   return 'call-status--neutral';
 };

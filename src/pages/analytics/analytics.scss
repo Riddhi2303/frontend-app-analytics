@@ -1960,6 +1960,10 @@ body {
       color: var(--student-text-primary);
     }
 
+    .drawer-call-status.call-status--muted {
+      color: var(--student-text-muted);
+    }
+
     .drawer-status-chip--submitted {
       color: var(--student-status-green);
       background: #e8f7ef;
@@ -2309,6 +2313,10 @@ body {
 
 .call-status--neutral {
   color: #231f20;
+}
+
+.call-status--muted {
+  color: #727272;
 }
 
 .call-status--positive {

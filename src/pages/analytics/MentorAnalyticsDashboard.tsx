@@ -860,6 +860,10 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
     }
     const stillVisible = cohortFilters.some((item) => item.id === selectedCohort);
     if (!stillVisible) {
+      lastSidebarCountScopeRef.current = selectedSeason != null ? 'season' : 'year';
+      allowScopedSeasonApplyRef.current = false;
+      setPendingSeasonLoader(selectedSeason);
+      lastFacetFetchKeyRef.current = null;
       setSelectedCohort(null);
     }
   }, [cohortFilters, selectedCohort]);
@@ -987,14 +991,22 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   };
 
   const clearCohort = () => {
-    lastSidebarCountScopeRef.current = 'cohort';
+    // Back to year+season scope so the selected season count refreshes without residency.
+    if (selectedSeason != null) {
+      lastSidebarCountScopeRef.current = 'season';
+    } else if (selectedYear != null) {
+      lastSidebarCountScopeRef.current = 'year';
+    } else {
+      lastSidebarCountScopeRef.current = 'cohort';
+    }
     clearSidebarSearch();
     setPendingEnrollmentLoader(null);
     setPendingGlobalCountsLoader(false);
     setPendingYearLoader(null);
-    setPendingSeasonLoader(null);
+    setPendingSeasonLoader(selectedSeason);
     setPendingSeasonListLoader(false);
     setPendingCohortLoader(null);
+    allowScopedSeasonApplyRef.current = false;
     const reloadCohortList = selectedSeason != null && selectedSeason !== 'not-assigned'
       && (selectedYear === '2026' || selectedYear === '2027');
     setPendingCohortListLoader(reloadCohortList);
