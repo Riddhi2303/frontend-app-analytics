@@ -10,6 +10,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 
 import messages from './i18n';
 import AnalyticsPage from './pages/analytics/AnalyticsPage';
+import AppointmentsPage from './pages/appointments/AppointmentsPage';
 import { store } from './store';
 import Header from '@edx/frontend-component-header';
 
@@ -30,6 +31,7 @@ subscribe(APP_READY, () => {
         <div className="analytics-app-body">
           <Routes>
             <Route path="/analytics" element={<AnalyticsPage />} />
+            <Route path="/appointments" element={<AppointmentsPage />} />
             <Route path="/" element={<Navigate to="/analytics" replace />} />
             <Route path="*" element={<Navigate to="/analytics" replace />} />
           </Routes>

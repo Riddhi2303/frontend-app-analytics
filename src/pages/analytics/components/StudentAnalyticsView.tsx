@@ -4,6 +4,7 @@ import { Spinner } from '@openedx/paragon';
 
 import { fetchStudentsAnalyticsApi } from '../data/api';
 import type { ApiStudent } from '../data/analyticsData';
+import AnalyticsTopNav from './AnalyticsTopNav';
 import StudentDetailView from './StudentDetailView';
 
 const StudentAnalyticsView = () => {
@@ -45,6 +46,7 @@ const StudentAnalyticsView = () => {
   if (loading) {
     return (
       <main className="analytics-page analytics-page--student">
+        <AnalyticsTopNav />
         <div className="student-analytics-loading" aria-busy="true" aria-live="polite">
           <Spinner animation="border" screenReaderText="Loading your analytics" />
         </div>
@@ -55,6 +57,7 @@ const StudentAnalyticsView = () => {
   if (error || !student) {
     return (
       <main className="analytics-page analytics-page--student">
+        <AnalyticsTopNav />
         <div className="student-analytics-error" role="alert">
           {error ?? 'Student profile not found.'}
         </div>
@@ -64,6 +67,7 @@ const StudentAnalyticsView = () => {
 
   return (
     <main className="analytics-page analytics-page--student">
+      <AnalyticsTopNav />
       <StudentDetailView student={student} variant="page" />
     </main>
   );

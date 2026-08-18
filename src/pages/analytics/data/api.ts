@@ -1,4 +1,3 @@
-// import { getAuthenticatedHttpClient } from "@edx/frontend-platform/auth";
 import axios from 'axios';
 
 import type {
@@ -224,6 +223,48 @@ type FetchStudentsParams = {
 const MASH_API_ORIGIN =
   process.env.NODE_ENV === 'development' ? '' : 'https://mash.makersasylum.com';
 
+const OAUTH2_TOKEN_URL = `${MASH_API_ORIGIN}/oauth2/access_token`;
+const MENTORING_MY_ROLES_URL = `${MASH_API_ORIGIN}/mentoring/api/v1/my-roles/`;
+
+let _cachedToken: { value: string; expiresAt: number } | null = null;
+
+async function fetchAccessTokenApi(): Promise<string> {
+  if (_cachedToken && Date.now() < _cachedToken.expiresAt) {
+    return _cachedToken.value;
+  }
+
+  const body = new URLSearchParams({
+    grant_type: "password",
+    username: "Archit",
+    password: "system123#",
+  });
+
+  const { data } = await axios.post(OAUTH2_TOKEN_URL, body, {
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Authorization:
+        "Basic WTdVQUt6UFlDdDNZYzd1RmxJQjMyNXl2Q1Z0NmFLMXk5RXA2UVVtRzpQVnpURlpTVVN6b1NWbE5QeXhFMG5Lb0xIOXFsRFFMRWtmcXBrVFFEQzhBdjJnSEZCanVON0FPbGl1a29oejZBYkJZMlFvWmpzSjNIazRURXN4RkZRdHlXbFlWWTQ3MDJ3WXVhT3ZFUHVqUnFsb2FiUGVyVElQYWZFNmZjSlhUQg==",
+    },
+  });
+
+  const expiresIn: number = (data.expires_in ?? 3600) * 1000;
+  _cachedToken = { value: data.access_token as string, expiresAt: Date.now() + expiresIn - 60_000 };
+  return _cachedToken.value;
+}
+
+/** Authenticated GET — same Bearer token Postman/logged-in Chrome use. */
+async function authenticatedGet<T = unknown>(
+  url: string,
+  config: { params?: Record<string, string | number | boolean> } = {},
+): Promise<T> {
+  const accessToken = await fetchAccessTokenApi();
+  const { data } = await axios.get(url, {
+    ...config,
+    headers: { Authorization: `Bearer QWHknwL0yw46BhFQ0zKdDwJecBpJOG` },
+  });
+  return data as T;
+}
+
 const getBaseUrl = () => `${MASH_API_ORIGIN}/student-analytics/api/students/`;
 const buildFilterParams = (filters: ApiFilters = {}) => {
   const params: Record<string, string | number | boolean> = {};
@@ -294,11 +335,7 @@ export async function fetchStudentsAnalyticsApi({
     ...buildFilterParams(filters),
   };
 
-  // const { data } = await getAuthenticatedHttpClient().get(url, { params });
-  // return data as ApiStudentAnalyticsResponse;
-
-  const response = await axios.get(url, { params });
-  return response.data as ApiStudentAnalyticsResponse;
+  return authenticatedGet<ApiStudentAnalyticsResponse>(url, { params });
 }
 
 /**
@@ -307,7 +344,7 @@ export async function fetchStudentsAnalyticsApi({
  */
 export async function fetchResidenciesApi(): Promise<ApiResidency[]> {
   const url = getBaseUrl().replace(/\/students\/?$/, "/residencies/");
-  const { data } = await axios.get(url);
+  const data = await authenticatedGet<unknown>(url);
 
   if (Array.isArray(data)) {
     return data as ApiResidency[];
@@ -355,11 +392,7 @@ export async function fetchEnrollmentFilterCountsApi(): Promise<
   ApiStudentAnalyticsResponse["counts"]
 > {
   const url = resolveSiblingApiUrl("counts/filters/");
-
-  // const { data } = await getAuthenticatedHttpClient().get(url);
-  // return normalizeCountsPayload(data);
-
-  const { data } = await axios.get(url);
+  const data = await authenticatedGet(url);
   return normalizeCountsPayload(data);
 }
 
@@ -372,7 +405,7 @@ export async function fetchResidencyCountsApi(
 ): Promise<ApiStudentAnalyticsResponse["counts"]> {
   const url = resolveSiblingApiUrl("counts/residencies/");
   const params = buildFilterParams(filters);
-  const { data } = await axios.get(url, { params });
+  const data = await authenticatedGet(url, { params });
   return normalizeCountsPayload(data);
 }
 
@@ -385,8 +418,7 @@ export async function fetchScopedCountsApi(
 ): Promise<ApiStudentAnalyticsResponse["counts"]> {
   const url = resolveSiblingApiUrl("counts/filters/");
   const params = buildFilterParams(filters);
-
-  const { data } = await axios.get(url, { params });
+  const data = await authenticatedGet(url, { params });
   return normalizeCountsPayload(data);
 }
 
@@ -423,12 +455,11 @@ export async function fetchGateCallsApi({
     mentor_id: mentorId,
   };
 
-  const { data } = await axios.get(url, { params });
-  const payload = data as ApiGateCallsResponse | ApiGateCallsResponse["results"];
-  if (Array.isArray(payload)) {
-    return payload;
+  const data = await authenticatedGet<ApiGateCallsResponse | ApiGateCallsResponse["results"]>(url, { params });
+  if (Array.isArray(data)) {
+    return data;
   }
-  return payload.results ?? [];
+  return data.results ?? [];
 }
 
 type FetchOraDetailsParams = {
@@ -450,12 +481,11 @@ export async function fetchOraDetailsApi({
     course_id: courseId,
   };
 
-  const { data } = await axios.get(url, { params });
-  const payload = data as ApiOraDetailsResponse | ApiOraDetailsResponse["results"];
-  if (Array.isArray(payload)) {
-    return payload;
+  const data = await authenticatedGet<ApiOraDetailsResponse | ApiOraDetailsResponse["results"]>(url, { params });
+  if (Array.isArray(data)) {
+    return data;
   }
-  return payload.results ?? [];
+  return data.results ?? [];
 }
 
 export type MyRolesResponse = {
@@ -465,9 +495,6 @@ export type MyRolesResponse = {
   is_student: boolean;
 };
 
-const MENTORING_MY_ROLES_URL = `${MASH_API_ORIGIN}/mentoring/api/v1/my-roles/`;
-const OAUTH2_TOKEN_URL = `${MASH_API_ORIGIN}/oauth2/access_token`;
-
 /** Superuser or mentor sees the full mentor analytics dashboard; everyone else sees their own student record. */
 export const isMentorAdminView = (roles: MyRolesResponse): boolean =>
   Boolean(roles.is_superuser || roles.is_mentor);
@@ -476,42 +503,12 @@ export const isMentorAdminView = (roles: MyRolesResponse): boolean =>
 export const canAssignResidency = (roles: MyRolesResponse): boolean =>
   roles.is_superuser;
 
-let _cachedToken: { value: string; expiresAt: number } | null = null;
-
-async function fetchAccessTokenApi(): Promise<string> {
-  if (_cachedToken && Date.now() < _cachedToken.expiresAt) {
-    return _cachedToken.value;
-  }
-
-  const body = new URLSearchParams({
-    grant_type: "password",
-    username: "Archit",
-    password: "system123#",
-  });
-
-  const { data } = await axios.post(OAUTH2_TOKEN_URL, body, {
-    headers: {
-      "Content-Type": "application/x-www-form-urlencoded",
-      Authorization:
-        "Basic WTdVQUt6UFlDdDNZYzd1RmxJQjMyNXl2Q1Z0NmFLMXk5RXA2UVVtRzpQVnpURlpTVVN6b1NWbE5QeXhFMG5Lb0xIOXFsRFFMRWtmcXBrVFFEQzhBdjJnSEZCanVON0FPbGl1a29oejZBYkJZMlFvWmpzSjNIazRURXN4RkZRdHlXbFlWWTQ3MDJ3WXVhT3ZFUHVqUnFsb2FiUGVyVElQYWZFNmZjSlhUQg==",
-    },
-  });
-
-  const expiresIn: number = (data.expires_in ?? 3600) * 1000;
-  _cachedToken = { value: data.access_token as string, expiresAt: Date.now() + expiresIn - 60_000 };
-  return _cachedToken.value;
-}
-
 /**
  * Current user roles for analytics routing.
  * Fetches an OAuth2 token via password grant, then calls /my-roles/.
  */
 export async function fetchMyRolesApi(): Promise<MyRolesResponse> {
-  const accessToken = await fetchAccessTokenApi();
-  const { data } = await axios.get(MENTORING_MY_ROLES_URL, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  const payload = data as Partial<MyRolesResponse>;
+  const payload = await authenticatedGet<Partial<MyRolesResponse>>(MENTORING_MY_ROLES_URL);
   return {
     is_staff: Boolean(payload?.is_staff),
     is_superuser: Boolean(payload?.is_superuser),

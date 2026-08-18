@@ -24,6 +24,7 @@ import {
 import AnalyticsFiltersRow from './components/AnalyticsFiltersRow';
 import AnalyticsSidebar from './components/AnalyticsSidebar';
 import AnalyticsTable from './components/AnalyticsTable';
+import AnalyticsTopNav from './components/AnalyticsTopNav';
 import StudentDetailDrawer from './components/StudentDetailDrawer';
 import {
   buildCohortFiltersFromResidencies,
@@ -1050,6 +1051,7 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
 
   return (
     <main className="analytics-page">
+      <AnalyticsTopNav />
       <section className="analytics-content">
         <AnalyticsSidebar
           studentFilters={studentFilters}
