@@ -149,7 +149,11 @@ const AppointmentsTable = ({ appointments, onCancel }: AppointmentsTableProps) =
             <tr key={appointment.id}>
               <td>
                 <div className="appt-title">{appointment.title}</div>
-                <div className="appt-course">{appointment.courseName} ({appointment.courseCode})</div>
+                <div className="appt-course">
+                  {appointment.courseCode
+                    ? `${appointment.courseName} (${appointment.courseCode})`
+                    : appointment.courseName}
+                </div>
               </td>
               <td>
                 <DateTimeCell

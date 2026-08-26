@@ -228,7 +228,7 @@ const MENTORING_MY_ROLES_URL = `${MASH_API_ORIGIN}/mentoring/api/v1/my-roles/`;
 
 let _cachedToken: { value: string; expiresAt: number } | null = null;
 
-async function fetchAccessTokenApi(): Promise<string> {
+export async function fetchAccessTokenApi(): Promise<string> {
   if (_cachedToken && Date.now() < _cachedToken.expiresAt) {
     return _cachedToken.value;
   }

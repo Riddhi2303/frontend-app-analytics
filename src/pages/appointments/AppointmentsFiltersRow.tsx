@@ -1,7 +1,7 @@
 import { ChevronRightIcon } from './AppointmentsIcons';
-import type { AppointmentCategory } from './appointmentsData';
+import type { AppointmentCategoryFilter } from './appointmentsData';
 
-export type AppointmentCategoryFilter = 'all' | AppointmentCategory;
+export type { AppointmentCategoryFilter };
 
 type AppointmentsFiltersRowProps = {
   selectedCategory: AppointmentCategoryFilter;

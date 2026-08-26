@@ -1,10 +1,11 @@
 import { ChevronRightIcon } from './AppointmentsIcons';
-import { COURSES, formatInr } from './appointmentsData';
+import { formatInr, formatUsername, type AppointmentCourseOption } from './appointmentsData';
 
 type AppointmentsSidebarProps = {
   mentors: string[];
   students: string[];
   months: string[];
+  courses: AppointmentCourseOption[];
   selectedMentor: string;
   selectedStudent: string;
   selectedMonth: string;
@@ -23,12 +24,14 @@ const SelectRow = ({
   label,
   value,
   options,
+  formatOption = (option: string) => option,
   onChange,
   onStep,
 }: {
   label: string;
   value: string;
   options: string[];
+  formatOption?: (option: string) => string;
   onChange: (value: string) => void;
   onStep?: (delta: number) => void;
 }) => (
@@ -42,7 +45,7 @@ const SelectRow = ({
           onChange={(event) => onChange(event.target.value)}
         >
           {options.map((option) => (
-            <option key={option} value={option}>{option}</option>
+            <option key={option} value={option}>{formatOption(option)}</option>
           ))}
         </select>
         <ChevronRightIcon className="appt-sidebar-caret" />
@@ -75,6 +78,7 @@ const AppointmentsSidebar = ({
   mentors,
   students,
   months,
+  courses,
   selectedMentor,
   selectedStudent,
   selectedMonth,
@@ -100,6 +104,7 @@ const AppointmentsSidebar = ({
       label="Mentor"
       value={selectedMentor}
       options={['All Mentors', ...mentors]}
+      formatOption={(option) => (option === 'All Mentors' ? option : formatUsername(option))}
       onChange={onMentorChange}
       onStep={onMentorStep}
     />
@@ -121,12 +126,13 @@ const AppointmentsSidebar = ({
       label="Student"
       value={selectedStudent}
       options={['All Students', ...students]}
+      formatOption={(option) => (option === 'All Students' ? option : formatUsername(option))}
       onChange={onStudentChange}
     />
 
     <h3 className="sidebar-section-title">Course</h3>
     <div className="filter-list">
-      {COURSES.map((course) => (
+      {courses.map((course) => (
         <label key={course.code} className="filter-row">
           <input
             type="radio"

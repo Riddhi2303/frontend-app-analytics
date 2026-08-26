@@ -22,6 +22,63 @@ export type AppointmentCategory =
 
 export type InvoiceType = 'AI' | 'MAF' | null;
 
+export type AppointmentCategoryFilter = AppointmentCategory | 'all';
+
+export const CATEGORY_STATUS_FILTER: Record<AppointmentCategoryFilter, string | undefined> = {
+  upcoming: 'upcoming',
+  'review-pending': 'review_pending',
+  'completed-ai': 'completed_calls',
+  'completed-maf': 'completed_maf',
+  'student-absent': 'student_absent',
+  'mentor-absent': 'mentor_absent',
+  'cancelled-rescheduled': 'cancelled_rescheduled',
+  all: undefined,
+};
+
+export type ApiEventCounts = {
+  all_scheduled?: number;
+  upcoming?: number;
+  completed_calls?: number;
+  completed_maf?: number;
+  student_absent?: number;
+  mentor_absent?: number;
+  cancelled_rescheduled?: number;
+  review_pending?: number;
+};
+
+export const EMPTY_CATEGORY_COUNTS: Record<AppointmentCategoryFilter, number> = {
+  all: 0,
+  upcoming: 0,
+  'review-pending': 0,
+  'completed-ai': 0,
+  'completed-maf': 0,
+  'student-absent': 0,
+  'mentor-absent': 0,
+  'cancelled-rescheduled': 0,
+};
+
+export const mapEventCounts = (data: ApiEventCounts): Record<AppointmentCategoryFilter, number> => {
+  const upcoming = data.upcoming ?? 0;
+  const reviewPending = data.review_pending ?? 0;
+  const completedAi = data.completed_calls ?? 0;
+  const completedMaf = data.completed_maf ?? 0;
+  const studentAbsent = data.student_absent ?? 0;
+  const mentorAbsent = data.mentor_absent ?? 0;
+  const cancelled = data.cancelled_rescheduled ?? 0;
+  const allScheduled = data.all_scheduled ?? 0;
+
+  return {
+    upcoming,
+    'review-pending': reviewPending,
+    'completed-ai': completedAi,
+    'completed-maf': completedMaf,
+    'student-absent': studentAbsent,
+    'mentor-absent': mentorAbsent,
+    'cancelled-rescheduled': cancelled,
+    all: allScheduled + reviewPending + completedAi + completedMaf + studentAbsent + mentorAbsent + cancelled,
+  };
+};
+
 export type AppointmentRecord = {
   id: string;
   title: string;
@@ -46,10 +103,21 @@ export type AppointmentRecord = {
 
 export const COURSES = [
   { code: 'all', name: 'All Courses' },
-  { code: 'CAD1', name: 'Computer Aided Design (CAD1)' },
-  { code: 'EMC1', name: 'Electronics & Microcontrollers (EMC1)' },
-  { code: 'IOT1', name: 'Internet of Things (IoT1)' },
 ] as const;
+
+export type AppointmentCourseOption = {
+  code: string;
+  name: string;
+};
+
+export const formatUsername = (value: string) => {
+  if (!value || value.includes('@') || value.includes(' ') || /[._-]/.test(value)) {
+    return value;
+  }
+  return value
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2');
+};
 
 const FIGMA_AGENDA = 'I want to understand the aspects of engineering which I will learn and explore through in this course & discuss projects I could end up building by the end!';
 
@@ -267,15 +335,15 @@ export const SAMPLE_APPOINTMENTS: AppointmentRecord[] = [
 ];
 
 export const uniqueMentors = (rows: AppointmentRecord[]) => (
-  [...new Set(rows.map((row) => row.mentorName))].sort()
+  [...new Set(rows.map((row) => row.mentorName).filter(Boolean))].sort()
 );
 
 export const uniqueStudents = (rows: AppointmentRecord[]) => (
-  [...new Set(rows.map((row) => row.studentName))].sort()
+  [...new Set(rows.map((row) => row.studentName).filter(Boolean))].sort()
 );
 
 export const uniqueMonths = (rows: AppointmentRecord[]) => (
-  [...new Set(rows.map((row) => row.date.replace(/^\d{2}\s/, '')))].sort()
+  [...new Set(rows.map((row) => row.date.replace(/^\d{2}\s/, '')).filter(Boolean))].sort()
 );
 
 export const getAppointmentCategory = (row: AppointmentRecord): AppointmentCategory => {
@@ -323,3 +391,235 @@ export const statusClassName = (status: AppointmentStatus) => {
       return 'appt-status--muted';
   }
 };
+
+export type ApiMentoringEventGuest = {
+  id?: number;
+  full_name?: string;
+  name?: string;
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  is_staff?: boolean;
+  is_mentor?: boolean;
+  role?: string;
+};
+
+export type ApiMentoringEvent = {
+  id?: number | string;
+  event_name?: string;
+  title?: string;
+  name?: string;
+  start_time?: string | null;
+  end_time?: string | null;
+  status?: string | null;
+  result?: string | null;
+  failure_reason?: string | null;
+  agenda?: string | null;
+  description?: string | null;
+  meeting_link?: string | null;
+  meet_link?: string | null;
+  google_meet_link?: string | null;
+  can_join?: boolean;
+  guests?: ApiMentoringEventGuest[];
+  organiser_id?: number;
+  organiser_name?: string | null;
+  mentor?: string | { name?: string; full_name?: string } | null;
+  mentor_attendance?: boolean | null;
+  student_attendance?: boolean | null;
+  course?: string | {
+    code?: string;
+    course_code?: string;
+    name?: string;
+    course_name?: string;
+  } | null;
+  course_code?: string | null;
+  course_name?: string | null;
+  calculated_amount?: number | null;
+  invoice_type?: string | null;
+};
+
+export type ApiMentoringEventsResponse = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: ApiMentoringEvent[];
+  total_calculated_amount?: number | null;
+  ai_total_calculated_amount?: number | null;
+  maf_total_calculated_amount?: number | null;
+};
+
+const DISPLAY_STATUS: Record<string, AppointmentStatus> = {
+  scheduled: 'Scheduled',
+  confirmed: 'Scheduled',
+  good_to_proceed: 'Good to proceed',
+  completed: 'Good to proceed',
+  reschedule_needed: 'Revision AND/OR Reschedule Needed',
+  revision_needed: 'Revision AND/OR Reschedule Needed',
+  pending_review: 'Revision AND/OR Reschedule Needed',
+  student_was_absent: 'Student was absent',
+  student_absent: 'Student was absent',
+  mentor_was_absent: 'Mentor was absent',
+  mentor_absent: 'Mentor was absent',
+  rescheduled: 'Rescheduled',
+  cancelled: 'Cancelled',
+  pending: 'Pending',
+  not_booked: 'Not Booked',
+  'not booked': 'Not Booked',
+};
+
+const personName = (guest?: ApiMentoringEventGuest | null) => {
+  if (!guest) {
+    return '';
+  }
+  const full = guest.full_name
+    || [guest.first_name, guest.last_name].filter(Boolean).join(' ')
+    || guest.name
+    || guest.username
+    || '';
+  return full.trim();
+};
+
+const formatClock = (iso: string | null | undefined) => {
+  if (!iso) {
+    return '';
+  }
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(date);
+};
+
+const formatDay = (iso: string | null | undefined) => {
+  if (!iso) {
+    return '';
+  }
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return new Intl.DateTimeFormat('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(date).replace(/ /g, ' ');
+};
+
+const resolveMeetUrl = (event: ApiMentoringEvent) => (
+  event.meeting_link || event.meet_link || event.google_meet_link || null
+);
+
+const resolveCourse = (event: ApiMentoringEvent) => {
+  if (event.course && typeof event.course === 'object') {
+    return {
+      code: event.course.course_code || event.course.code || event.course_code || '',
+      name: event.course.course_name || event.course.name || event.course_name || '',
+    };
+  }
+  if (typeof event.course === 'string' && event.course.trim()) {
+    return { code: event.course_code || '', name: event.course };
+  }
+  return {
+    code: event.course_code || '',
+    name: event.course_name || '',
+  };
+};
+
+const resolveStatus = (event: ApiMentoringEvent): AppointmentStatus => {
+  const raw = (event.status || '').toLowerCase().replace(/-/g, '_').trim();
+  const result = (event.result || '').toLowerCase();
+  const reason = (event.failure_reason || '').toLowerCase();
+
+  if (raw === 'cancelled') {
+    return 'Cancelled';
+  }
+  if (raw === 'rescheduled') {
+    return 'Rescheduled';
+  }
+  if (result === 'passed') {
+    return 'Good to proceed';
+  }
+  if (result === 'failed') {
+    if (reason === 'absent') {
+      return event.mentor_attendance === false ? 'Mentor was absent' : 'Student was absent';
+    }
+    return 'Revision AND/OR Reschedule Needed';
+  }
+  return DISPLAY_STATUS[raw] ?? 'Scheduled';
+};
+
+const resolveCanJoin = (event: ApiMentoringEvent, status: AppointmentStatus, meetUrl: string | null) => {
+  if (event.can_join != null) {
+    return Boolean(event.can_join && meetUrl);
+  }
+  if (status !== 'Scheduled' || !meetUrl || !event.start_time) {
+    return false;
+  }
+  const start = new Date(event.start_time).getTime();
+  const end = event.end_time ? new Date(event.end_time).getTime() : start + (60 * 60 * 1000);
+  const now = Date.now();
+  return now >= (start - (15 * 60 * 1000)) && now <= end;
+};
+
+export const mapMentoringEventToAppointment = (event: ApiMentoringEvent): AppointmentRecord => {
+  const guests = Array.isArray(event.guests) ? event.guests : [];
+  const mentorFromField = typeof event.mentor === 'string'
+    ? event.mentor
+    : (event.mentor?.full_name || event.mentor?.name || '');
+  const mentorGuest = guests.find((guest) => (
+    guest.is_mentor === true
+    || guest.role === 'mentor'
+    || guest.id === event.organiser_id
+  ));
+  const studentGuest = guests.find((guest) => (
+    guest !== mentorGuest
+    && guest.is_mentor !== true
+    && guest.role !== 'mentor'
+    && guest.id !== event.organiser_id
+  )) || guests.find((guest) => guest !== mentorGuest);
+
+  const course = resolveCourse(event);
+  const status = resolveStatus(event);
+  const meetUrl = resolveMeetUrl(event);
+  const invoiceRaw = (event.invoice_type || '').toUpperCase();
+
+  let studentAttendance: Attendance = null;
+  if (event.student_attendance === true) {
+    studentAttendance = 'Present';
+  } else if (event.student_attendance === false) {
+    studentAttendance = 'Absent';
+  }
+
+  let mentorAttendance: Attendance = null;
+  if (event.mentor_attendance === true) {
+    mentorAttendance = 'Present';
+  } else if (event.mentor_attendance === false) {
+    mentorAttendance = 'Absent';
+  }
+
+  return {
+    id: String(event.id ?? `${event.start_time}-${event.event_name}`),
+    title: event.event_name || event.title || event.name || 'Appointment',
+    courseCode: course.code,
+    courseName: course.name,
+    date: formatDay(event.start_time),
+    start: formatClock(event.start_time),
+    end: formatClock(event.end_time),
+    status,
+    meetUrl,
+    canJoin: resolveCanJoin(event, status, meetUrl),
+    studentName: personName(studentGuest),
+    studentAttendance,
+    agenda: event.agenda || event.description || '',
+    mentorName: event.organiser_name || mentorFromField || personName(mentorGuest),
+    mentorAttendance,
+    mentorComments: '',
+    invoiceType: invoiceRaw === 'MAF' || invoiceRaw === 'AI' ? invoiceRaw : null,
+    invoiceAmount: event.calculated_amount ?? null,
+    statusDetail: event.failure_reason || null,
+  };
+};
+
