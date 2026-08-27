@@ -1,7 +1,11 @@
 import axios from 'axios';
 
 import { fetchAccessTokenApi } from '../analytics/data/api';
-import type { ApiEventCounts, ApiMentoringEventsResponse } from './appointmentsData';
+import type {
+  ApiEventCounts,
+  ApiMentoringEventsResponse,
+  AppointmentCourseOption,
+} from './appointmentsData';
 
 /** Empty in development so webpack-dev-server proxy handles CORS; absolute in production. */
 const MASH_API_ORIGIN =
@@ -10,11 +14,12 @@ const MASH_API_ORIGIN =
 const MENTORING_EVENTS_URL = `${MASH_API_ORIGIN}/mentoring/api/v1/mentoring-events/`;
 const FILTER_OPTIONS_URL = `${MASH_API_ORIGIN}/mentoring/api/v1/filter-options/`;
 const EVENT_COUNTS_URL = `${MASH_API_ORIGIN}/mentoring/api/v1/event-counts/`;
+const COURSES_LIST_URL = `${MASH_API_ORIGIN}/api/courses/v1/courses/`;
 
 export type MentoringListFilters = {
   mentor?: string;
   student?: string;
-  course?: string;
+  courseId?: string;
 };
 
 export type MentoringEventsQuery = MentoringListFilters & {
@@ -34,16 +39,78 @@ const applyListFilters = (
   if (filters.student) {
     params.student = filters.student;
   }
-  if (filters.course) {
-    params.course = filters.course;
+  if (filters.courseId) {
+    params.course_id = filters.courseId;
   }
 };
 
 export type ApiFilterOptionsResponse = {
   mentors: string[];
   students: string[];
-  courses: Array<{ value: string; label: string }>;
 };
+
+export type ApiCourseListItem = {
+  id?: string;
+  course_id?: string;
+  name?: string;
+  number?: string;
+  hidden?: boolean;
+};
+
+export type ApiCourseListResponse = {
+  results?: ApiCourseListItem[];
+  next?: string | null;
+  pagination?: {
+    next?: string | null;
+    previous?: string | null;
+    count?: number;
+    num_pages?: number;
+  };
+};
+
+const mapCourseToOption = (course: ApiCourseListItem): AppointmentCourseOption | null => {
+  if (course.hidden) {
+    return null;
+  }
+  const courseId = course.id || course.course_id || '';
+  if (!courseId) {
+    return null;
+  }
+  return {
+    code: courseId,
+    name: course.name || course.number || courseId,
+  };
+};
+
+export async function fetchCoursesListApi(): Promise<AppointmentCourseOption[]> {
+  const accessToken = await fetchAccessTokenApi();
+  const options: AppointmentCourseOption[] = [];
+  const seen = new Set<string>();
+  let page = 1;
+  let hasNext = true;
+
+  while (hasNext) {
+    const { data } = await axios.get<ApiCourseListResponse>(COURSES_LIST_URL, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    const results = Array.isArray(data?.results) ? data.results : [];
+    results.forEach((course) => {
+      const option = mapCourseToOption(course);
+      if (!option || seen.has(option.code)) {
+        return;
+      }
+      seen.add(option.code);
+      options.push(option);
+    });
+    hasNext = Boolean(data?.pagination?.next ?? data?.next);
+    page += 1;
+    if (page > 50) {
+      break;
+    }
+  }
+
+  return options.sort((a, b) => a.name.localeCompare(b.name));
+}
 
 export async function fetchFilterOptionsApi(
   student = 'admin',
@@ -57,23 +124,24 @@ export async function fetchFilterOptionsApi(
   return {
     mentors: Array.isArray(data?.mentors) ? data.mentors : [],
     students: Array.isArray(data?.students) ? data.students : [],
-    courses: Array.isArray(data?.courses) ? data.courses : [],
   };
 }
 
 export async function fetchEventCountsApi(
-  filters: MentoringListFilters = {},
 ): Promise<ApiEventCounts> {
-  const accessToken = await fetchAccessTokenApi();
-  const params: Record<string, string | number> = {};
-  applyListFilters(params, filters);
+  try {
+    const accessToken = await fetchAccessTokenApi();
+  
+console.log('ApiEventCounts',EVENT_COUNTS_URL,"fetchEventCountsApi")
+    const { data } = await axios.get<ApiEventCounts>(EVENT_COUNTS_URL, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
 
-  const { data } = await axios.get<ApiEventCounts>(EVENT_COUNTS_URL, {
-    params,
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-
-  return data ?? {};
+    return data ?? {};
+  } catch (error) {
+    console.error('Error fetching event counts:', error);
+    return {};
+  }
 }
 
 export async function fetchMentoringEventsApi(
@@ -90,7 +158,7 @@ export async function fetchMentoringEventsApi(
     params.status_filter = query.statusFilter;
   }
   applyListFilters(params, query);
-
+console.log('ApiMentoringEventsResponse',MENTORING_EVENTS_URL,"fetchMentoringEventsApi")
   const { data } = await axios.get<ApiMentoringEventsResponse>(MENTORING_EVENTS_URL, {
     params,
     headers: { Authorization: `Bearer ${accessToken}` },

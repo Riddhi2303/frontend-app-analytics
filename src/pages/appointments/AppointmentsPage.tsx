@@ -6,7 +6,12 @@ import { fetchMyRolesApi, type MyRolesResponse } from '../analytics/data/api';
 import AppointmentsFiltersRow, { type AppointmentCategoryFilter } from './AppointmentsFiltersRow';
 import AppointmentsSidebar from './AppointmentsSidebar';
 import AppointmentsTable from './AppointmentsTable';
-import { fetchEventCountsApi, fetchFilterOptionsApi, fetchMentoringEventsApi } from './appointmentsApi';
+import {
+  fetchCoursesListApi,
+  fetchEventCountsApi,
+  fetchFilterOptionsApi,
+  fetchMentoringEventsApi,
+} from './appointmentsApi';
 import {
   CATEGORY_STATUS_FILTER,
   COURSES,
@@ -57,7 +62,7 @@ const AppointmentsPage = () => {
   const listFilters = useMemo(() => ({
     mentor: selectedMentor === 'All Mentors' ? undefined : selectedMentor,
     student: selectedStudent === 'All Students' ? undefined : selectedStudent,
-    course: selectedCourse === 'all' ? undefined : selectedCourse,
+    courseId: selectedCourse === 'all' ? undefined : selectedCourse,
   }), [selectedCourse, selectedMentor, selectedStudent]);
 
   useEffect(() => {
@@ -85,22 +90,19 @@ const AppointmentsPage = () => {
   useEffect(() => {
     let cancelled = false;
     const loadFilterOptions = async () => {
-      try {
-        const options = await fetchFilterOptionsApi('admin');
-        if (cancelled) {
-          return;
-        }
-        setMentors(options.mentors);
-        setStudents(options.students);
-        setCourses([
-          ...FALLBACK_COURSES,
-          ...options.courses.map((course) => ({
-            code: course.value,
-            name: course.label,
-          })),
-        ]);
-      } catch {
-        // Keep All Mentors / All Students / All Courses if the options call fails.
+      const [optionsResult, coursesResult] = await Promise.allSettled([
+        fetchFilterOptionsApi('admin'),
+        fetchCoursesListApi(),
+      ]);
+      if (cancelled) {
+        return;
+      }
+      if (optionsResult.status === 'fulfilled') {
+        setMentors(optionsResult.value.mentors);
+        setStudents(optionsResult.value.students);
+      }
+      if (coursesResult.status === 'fulfilled' && coursesResult.value.length > 0) {
+        setCourses([...FALLBACK_COURSES, ...coursesResult.value]);
       }
     };
     loadFilterOptions();
@@ -113,7 +115,8 @@ const AppointmentsPage = () => {
     let cancelled = false;
     const loadCounts = async () => {
       try {
-        const payload = await fetchEventCountsApi(listFilters);
+        const payload = await fetchEventCountsApi();
+        console.log('payload',payload,"loadCounts")
         if (!cancelled) {
           setCounts(mapEventCounts(payload));
         }

@@ -235,8 +235,8 @@ export async function fetchAccessTokenApi(): Promise<string> {
 
   const body = new URLSearchParams({
     grant_type: "password",
-    username: "Archit",
-    password: "system123#",
+    username: "admin",
+    password: "yoloMASH2520#",
   });
 
   const { data } = await axios.post(OAUTH2_TOKEN_URL, body, {
@@ -252,7 +252,7 @@ export async function fetchAccessTokenApi(): Promise<string> {
   return _cachedToken.value;
 }
 
-/** Authenticated GET — same Bearer token Postman/logged-in Chrome use. */
+/** Authenticated GET using a fresh OAuth2 access token. */
 async function authenticatedGet<T = unknown>(
   url: string,
   config: { params?: Record<string, string | number | boolean> } = {},
@@ -260,7 +260,7 @@ async function authenticatedGet<T = unknown>(
   const accessToken = await fetchAccessTokenApi();
   const { data } = await axios.get(url, {
     ...config,
-    headers: { Authorization: `Bearer QWHknwL0yw46BhFQ0zKdDwJecBpJOG` },
+    headers: { Authorization: `Bearer ${accessToken}` },
   });
   return data as T;
 }
