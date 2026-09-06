@@ -92,7 +92,7 @@ const AnalyticsTable = ({
                 tabIndex={onStudentSelect ? 0 : undefined}
                 aria-selected={onStudentSelect ? isSelected : undefined}
               >
-                <td className="student-cell col-name">
+                <td className="student-cell col-name" data-label="Name">
                   <div className="student-cell-inner">
                     <span className="student-avatar" aria-hidden="true">
                       {initialsFromName(student.name)}

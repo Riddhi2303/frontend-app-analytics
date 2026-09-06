@@ -32,6 +32,9 @@ type AnalyticsFiltersRowProps = {
     totalCount: number;
   };
   onPageChange: (page: number) => void;
+  /* Opens the sidebar as an overlay panel. Only visible below the mobile
+     breakpoint, where the sidebar is not on screen beside the table. */
+  onOpenFilters?: () => void;
 };
 
 const ChipRadioIcon = ({ active }: { active: boolean }) => (
@@ -49,6 +52,7 @@ const AnalyticsFiltersRow = ({
   counts,
   pagination,
   onPageChange,
+  onOpenFilters,
 }: AnalyticsFiltersRowProps) => {
   const chipLoadingKey: Record<
     'all' | 'not-ready' | 'ready' | 'inactive',
@@ -77,6 +81,15 @@ const AnalyticsFiltersRow = ({
 
   return (
     <section className="analytics-filters-row">
+      <button
+        type="button"
+        className="analytics-filters-toggle"
+        onClick={onOpenFilters}
+        aria-label="Show filters"
+      >
+        Filters
+      </button>
+
       <button
         type="button"
         className="filters-refresh"

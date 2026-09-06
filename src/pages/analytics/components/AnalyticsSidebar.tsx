@@ -98,6 +98,10 @@ type AnalyticsSidebarProps = {
   loadingYear?: IsYearOption | null;
   loadingSeason?: IsSeasonOption | null;
   loadingCohort?: number | 'not-assigned' | null;
+  /* Below the mobile breakpoint the sidebar slides in over the table instead of
+     sitting beside it; on desktop it is always visible and these are inert. */
+  open?: boolean;
+  onClose?: () => void;
 };
 
 const AnalyticsSidebar = ({
@@ -128,6 +132,8 @@ const AnalyticsSidebar = ({
   loadingYear = null,
   loadingSeason = null,
   loadingCohort = null,
+  open = false,
+  onClose,
 }: AnalyticsSidebarProps) => {
   const seasonEnabled = isYearActiveForSeason(selectedYear);
   const cohortEnabled = isSeasonActiveForCohort(selectedSeason);
@@ -135,7 +141,20 @@ const AnalyticsSidebar = ({
   const cohortHasSelection = selectedCohort != null;
 
   return (
-    <aside className="analytics-sidebar">
+    <aside className={`analytics-sidebar${open ? ' analytics-sidebar--open' : ''}`}>
+      {/* Mobile-only affordance: the panel covers the table when open, so it
+          needs its own way out. CSS hides it at desktop widths. */}
+      <div className="analytics-sidebar-mobile-head">
+        <h2 className="analytics-sidebar-mobile-title">Filters</h2>
+        <button
+          type="button"
+          className="analytics-sidebar-mobile-close"
+          onClick={onClose}
+          aria-label="Close filters"
+        >
+          &times;
+        </button>
+      </div>
       <h3 className="sidebar-section-title">Enrollment Type</h3>
       <div className="filter-list">
         {studentFilters.map((item) => {

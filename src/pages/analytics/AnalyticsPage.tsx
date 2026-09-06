@@ -7,6 +7,9 @@ import StudentAnalyticsView from './components/StudentAnalyticsView';
 import { fetchMyRolesApi, isMentorAdminView, type MyRolesResponse } from './data/api';
 
 import './analytics.scss';
+/* Last so its media queries override the sheet above without needing extra
+   specificity. */
+import './analytics-responsive.scss';
 
 const AnalyticsPage = () => {
   const [roles, setRoles] = useState<MyRolesResponse | null>(null);

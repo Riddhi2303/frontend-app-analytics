@@ -1048,12 +1048,26 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
   ]);
 
   const showAssignResidency = roles ? canAssignResidency(roles) : false;
+  /* Mobile only: the sidebar is an overlay panel below the breakpoint. Desktop
+     ignores this — the sidebar is always in the layout there. */
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   return (
     <main className="analytics-page">
       <AnalyticsTopNav />
       <section className="analytics-content">
+        {/* Dims the table behind the mobile filter panel; CSS keeps it out of
+            the way entirely at desktop widths. */}
+        {filtersOpen && (
+          <div
+            className="analytics-sidebar-scrim"
+            onClick={() => setFiltersOpen(false)}
+            aria-hidden="true"
+          />
+        )}
         <AnalyticsSidebar
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
           studentFilters={studentFilters}
           notAssignedFilter={notAssignedFilter}
           cohortFilters={cohortFilters}
@@ -1099,6 +1113,7 @@ const MentorAnalyticsDashboard = ({ roles }: MentorAnalyticsDashboardProps) => {
               totalCount: pagination.count || 0,
             }}
             onPageChange={(page) => dispatch(setPage(page))}
+            onOpenFilters={() => setFiltersOpen(true)}
           />
           <div className="analytics-table-area">
             {loading && (

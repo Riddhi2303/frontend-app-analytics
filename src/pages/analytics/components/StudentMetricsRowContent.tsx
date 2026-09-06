@@ -19,7 +19,7 @@ const StudentMetricsRowContent = ({
   cellElement: Cell = 'td',
 }: StudentMetricsRowContentProps) => (
   <>
-    <Cell className="ongoing-cell col-ongoing">
+    <Cell className="ongoing-cell col-ongoing" data-label="Ongoing">
       {student.ongoingCourses.map((entry) => (
         <div key={entry.code} className="ongoing-entry">
           <span className="ongoing-dot" aria-hidden="true" />
@@ -27,18 +27,18 @@ const StudentMetricsRowContent = ({
         </div>
       ))}
     </Cell>
-    <Cell className="call-cell col-last-call">
+    <Cell className="call-cell col-last-call" data-label="Last Call">
       {student.ongoingCourses.map((entry) => (
         <div key={entry.code} className="call-entry">{entry.lastCall}</div>
       ))}
     </Cell>
-    <Cell className="call-cell col-next-call">
+    <Cell className="call-cell col-next-call" data-label="Next Call">
       {student.ongoingCourses.map((entry) => (
         <div key={entry.code} className="call-entry">{entry.nextCall}</div>
       ))}
     </Cell>
     {courseCodes.map((code) => (
-      <Cell key={code} className="metric-cell col-course">
+      <Cell key={code} className="metric-cell col-course" data-label={code}>
         <CourseMetricCard
           metric={student.courseMetrics[code] ?? null}
           studentName={student.name}
